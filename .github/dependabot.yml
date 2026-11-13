@@ -1,0 +1,78 @@
+# Monthly, grouped updates, each a week old first, so a compromised release has time to be pulled.
+# TSDoc's vendored suite isn't here: upstream.yml re-vendors it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # All but hegeltest, whose beta releases break its API and get a PR of their own.
+      cargo:
+        patterns: ["*"]
+        exclude-patterns: [hegeltest]
+
+  # The fuzz crate, which has its own Cargo.lock.
+  - package-ecosystem: cargo
+    directory: /fuzz
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      fuzz:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # The differential tests' oracle. tsdoc-config pins the tsdoc it was released with, so the two
+      # move together.
+      tsdoc:
+        patterns: ["@microsoft/tsdoc", "@microsoft/tsdoc-config"]
+
+  - package-ecosystem: npm
+    directory: /npm/tsdocrs
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+
+  - package-ecosystem: rust-toolchain
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore
+      include: scope
