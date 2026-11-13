@@ -45,3 +45,9 @@ config-file = ["dep:dunce", "dep:indexmap", "dep:json-strip-comments", "dep:oxc_
 name = "upstream"
 path = "tests/upstream/main.rs"
 harness = false
+
+# The Hegel properties, one file per area in tests/props/. tools/coverage.sh holds their own
+# coverage to the suite's thresholds.
+[[test]]
+name = "props"
+path = "tests/props/main.rs"
