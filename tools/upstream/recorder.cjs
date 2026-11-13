@@ -7,7 +7,9 @@ const { UPSTREAM_CHECKOUT: checkout, UPSTREAM_RECORDS: records } = process.env;
 const src = path.join(checkout, "tsdoc/src");
 // Required here, in the test file's module registry, so the patches below reach the classes it
 // imports. Through index.ts, the order the published package loads them in.
-const { TSDocParser, TSDocConfiguration, TSDocTagSyntaxKind, TextRange } = require(path.join(src, "index.ts"));
+const { TSDocParser, TSDocConfiguration, TSDocTagSyntaxKind, TextRange } = require(
+	path.join(src, "index.ts"),
+);
 const { TestHelpers } = require(path.join(src, "parser/__tests__/TestHelpers.ts"));
 
 const file = { path: path.relative(checkout, expect.getState().testPath), tests: [] };
@@ -34,12 +36,15 @@ const syntaxKinds = {
 
 function docNodes(configuration) {
 	const definitions = configuration.docNodeManager._docNodeDefinitionsByKind.values();
-	return JSON.stringify([...definitions].map((d) => [d.packageName, d.docNodeKind, [...d.allowedChildKinds]]));
+	return JSON.stringify(
+		[...definitions].map((d) => [d.packageName, d.docNodeKind, [...d.allowedChildKinds]]),
+	);
 }
 const builtInDocNodes = docNodes(new TSDocConfiguration());
 
 function serializeConfiguration(configuration) {
-	if (docNodes(configuration) !== builtInDocNodes) problem("custom DocNode definitions aren't recorded");
+	if (docNodes(configuration) !== builtInDocNodes)
+		problem("custom DocNode definitions aren't recorded");
 	const { validation } = configuration;
 	return {
 		tagDefinitions: configuration.tagDefinitions.map((tag) => ({
@@ -131,7 +136,8 @@ function recordMatchers(matchers, prefix) {
 		get(target, key, receiver) {
 			const value = Reflect.get(target, key, receiver);
 			if (typeof key !== "string") return value;
-			if (["not", "resolves", "rejects"].includes(key)) return recordMatchers(value, `${prefix}${key}.`);
+			if (["not", "resolves", "rejects"].includes(key))
+				return recordMatchers(value, `${prefix}${key}.`);
 			if (typeof value !== "function" || snapshotMatchers.has(key)) return value;
 			return function (...args) {
 				record({ type: "assertion", matcher: prefix + key });
