@@ -111,6 +111,7 @@ jobs:
       # cargo-fuzz, so cargo installs it from crates.io with its own lockfile. Dependabot doesn't
       # bump this version.
       - run: |
+          rustup toolchain install
           rustup toolchain install nightly --profile minimal
           cargo install --locked cargo-fuzz@0.13.2
       - run: cargo +nightly fuzz run "$TARGET" -- -max_total_time=300
