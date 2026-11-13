@@ -53,21 +53,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-  # The suite vendored at the newer commit, the harness run on it, and a pull request with both. A
-  # vendor or build failure fails the job. Failing tests don't: the pull request lists them, and its
-  # CI fails on them.
+  # The suite vendored at the newer commit and the harness run on it. This runs upstream's Jest suite
+  # and the npm packages it installs, so it gets no secrets and no write access: it only uploads
+  # the vendored files and the pull request's body for `pr`. A vendor or build failure fails the
+  # job. Failing tests don't: the pull request lists them, and its CI fails on them.
   update:
     needs: check
     if: ${{ needs.check.outputs.newer == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Holds the app's key, and deploys only from the default branch, so a run on another branch
-    # can't read it.
-    environment: upstream
+    outputs:
+      changed: ${{ steps.changed.outputs.changed }}
     env:
       CURRENT: ${{ needs.check.outputs.current }}
       LATEST: ${{ needs.check.outputs.latest }}
-      BRANCH: bnb/upstream-tsdoc
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -113,8 +112,12 @@ jobs:
         env:
           # nextest's libtest JSON output is still behind this.
           NEXTEST_EXPERIMENTAL_LIBTEST_JSON: 1
+      # What `pr` takes: the files vendor.sh writes, and the body.
       - if: ${{ steps.changed.outputs.changed == 'true' }}
         run: |
+          out=$RUNNER_TEMP/upstream
+          mkdir -p "$out/tests/upstream"
+          cp -R tests/upstream/suite tests/upstream/cases.json tests/upstream/manifest.json "$out/tests/upstream/"
           results=$RUNNER_TEMP/upstream.jsonl
           tests() { jq -s --arg event "$1" '[.[] | select(.type == "test" and .event == $event)]' "$results"; }
           passed=$(tests ok | jq length)
@@ -150,13 +153,58 @@ jobs:
                 echo "And $((failed - 50)) more."
               fi
             fi
-          } > "$RUNNER_TEMP/body.md"
-          cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
+          } > "$out/body.md"
+          cat "$out/body.md" >> "$GITHUB_STEP_SUMMARY"
+      - if: ${{ steps.changed.outputs.changed == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream
+          path: ${{ runner.temp }}/upstream/
+          if-no-files-found: error
+          retention-days: 7
+
+  # The pull request, from update's files. It runs none of the code update ran (no npm, Node or
+  # cargo), and takes only the files vendor.sh writes, checking nothing else changed before it gets
+  # the app's token.
+  pr:
+    needs: [check, update]
+    if: ${{ needs.update.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Holds the app's client id and key, and deploys only from the default branch, so a run on
+    # another branch can't read them.
+    environment: upstream
+    env:
+      CURRENT: ${{ needs.check.outputs.current }}
+      LATEST: ${{ needs.check.outputs.latest }}
+      BRANCH: bnb/upstream-tsdoc
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: upstream
+          path: ${{ runner.temp }}/upstream
+      - run: |
+          in=$RUNNER_TEMP/upstream
+          rm -rf tests/upstream/suite
+          cp -R "$in/tests/upstream/suite" "$in/tests/upstream/cases.json" "$in/tests/upstream/manifest.json" tests/upstream/
+          outside=$(git status --porcelain --untracked-files=all |
+            grep -Ev '^.. tests/upstream/(suite/|cases\.json$|manifest\.json$)' || true)
+          if [[ -n $outside ]]; then
+            echo "::error::update changed files besides the vendored suite:"
+            echo "$outside"
+            exit 1
+          fi
+          if [[ ! $LATEST =~ ^[0-9a-f]{40}$ || $(jq -r .commit tests/upstream/manifest.json) != "$LATEST" ]]; then
+            echo "::error::tests/upstream/manifest.json isn't at microsoft/tsdoc@$LATEST"
+            exit 1
+          fi
       # An app's token rather than GITHUB_TOKEN, since a push or pull request made with GITHUB_TOKEN
       # starts no workflows, and the pull request needs CI. It can write contents and pull requests,
       # in this repository only. The workflow's own token stays read-only.
-      - if: ${{ steps.changed.outputs.changed == 'true' }}
-        id: app
+      - id: app
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ vars.UPSTREAM_APP_CLIENT_ID }}
@@ -166,21 +214,23 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
       # The branch is this workflow's alone, so each run replaces it with one commit on the default
-      # branch, and updates the pull request if one is open.
-      - if: ${{ steps.changed.outputs.changed == 'true' }}
-        run: |
+      # branch, and updates the pull request if one is open. No hooks run: nothing here runs
+      # repository code once the token exists.
+      - run: |
           title="test: update TSDoc's suite to ${LATEST:0:7}"
           bot="${APP_SLUG}[bot]"
           id=$(gh api "users/${APP_SLUG}%5Bbot%5D" --jq .id)
-          git -c user.name="$bot" -c user.email="$id+$bot@users.noreply.github.com" commit --quiet \
-            -m "$title" -m "https://github.com/microsoft/tsdoc/compare/$CURRENT...$LATEST"
+          git add tests/upstream
+          git -c core.hooksPath=/dev/null -c user.name="$bot" -c user.email="$id+$bot@users.noreply.github.com" \
+            commit --no-verify --quiet -m "$title" -m "https://github.com/microsoft/tsdoc/compare/$CURRENT...$LATEST"
           gh auth setup-git
           git push --force origin "HEAD:refs/heads/$BRANCH"
+          body=$RUNNER_TEMP/upstream/body.md
           pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
           if [[ -n $pr ]]; then
-            gh pr edit "$pr" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+            gh pr edit "$pr" --title "$title" --body-file "$body"
           else
-            gh pr create --base "$BASE" --head "$BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+            gh pr create --base "$BASE" --head "$BRANCH" --title "$title" --body-file "$body"
           fi
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
