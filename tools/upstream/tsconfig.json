@@ -1,0 +1,16 @@
+// For ts-jest in tools/upstream/jest.config.cjs: the options from tsdoc's tsconfig chain (its
+// tsconfig.json, tsdoc-build-rig's web profile, heft-web-rig's library profile) that change what
+// tsc emits for lib-commonjs, which upstream's Jest runs. isolatedModules also makes ts-jest
+// transpile without type checking, as upstream's @types aren't installed.
+{
+	"compilerOptions": {
+		"target": "es2018",
+		"module": "commonjs",
+		"esModuleInterop": true,
+		"experimentalDecorators": true,
+		"strict": true,
+		"importHelpers": false,
+		"isolatedModules": true,
+		"jsx": "react"
+	}
+}

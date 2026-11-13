@@ -1,0 +1,11 @@
+/target
+/coverage
+# Hegel keeps failing examples here to replay them first next time.
+.hegel/
+.DS_Store
+.claude/
+/node_modules
+/npm/tsdocrs/pkg
+/fuzz/target
+/fuzz/corpus
+/fuzz/artifacts

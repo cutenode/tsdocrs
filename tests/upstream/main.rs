@@ -1,0 +1,98 @@
+//! `@microsoft/tsdoc`'s own tests, run against tsdocrs: each upstream test is a test here, named by
+//! its file and Jest name. Its snapshots are compared with what tsdocrs makes of the same input,
+//! and a port in ports/ checks the rest of its expectations. A test with an expectation nothing
+//! here can check fails, and so does one that fails while allowlist.json says it's expected to, if
+//! it passes: the allowlist only holds tests that fail.
+
+mod harness;
+mod ports {
+    automod::dir!("tests/upstream/ports");
+}
+
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+use harness::{Event, Port, Suite, Test};
+use libtest_mimic::{Arguments, Failed, Trial};
+use serde::Deserialize;
+
+/// tests/upstream/allowlist.json: the upstream tests expected to fail, by file and name, each with
+/// why.
+#[derive(Deserialize)]
+struct Allowed {
+    file: String,
+    name: String,
+    #[allow(dead_code)]
+    reason: String,
+}
+
+fn main() {
+    let suite: Suite = serde_json::from_str(include_str!("cases.json")).expect("cases.json");
+    let allowed: Vec<Allowed> = serde_json::from_str(include_str!("allowlist.json")).expect("allowlist.json");
+    let trials = suite.files.into_iter().flat_map(|file| {
+        let path = file.path;
+        let allowed = &allowed;
+        file.tests.into_iter().map(move |test| {
+            let expected_to_fail = allowed.iter().any(|a| a.file == path && a.name == test.name);
+            let name = format!("{path}::{}", test.name);
+            let path = path.clone();
+            Trial::test(name, move || {
+                let result = catch_unwind(AssertUnwindSafe(|| check(&path, &test)))
+                    .unwrap_or_else(|panic| Err(panic_message(&panic)));
+                match (result, expected_to_fail) {
+                    (Ok(()), false) | (Err(_), true) => Ok(()),
+                    (Ok(()), true) => Err(Failed::from("passes now: take it out of allowlist.json")),
+                    (Err(error), false) => Err(Failed::from(error)),
+                }
+            })
+        })
+    });
+    libtest_mimic::run(&Arguments::from_args(), trials.collect()).exit();
+}
+
+/// Checks `test` from the upstream file at `path`: each snapshot the harness knows how to make,
+/// and the ports of the test, which it needs when it has other expectations.
+fn check(path: &str, test: &Test) -> Result<(), String> {
+    let ports: Vec<&Port> =
+        inventory::iter::<Port>.into_iter().filter(|port| port.file == path && port.template == test.template).collect();
+    let mut unchecked = Vec::new();
+    for (index, event) in test.events.iter().enumerate() {
+        let checked = match event {
+            Event::Parse { .. } | Event::TextRange { .. } => true,
+            Event::Snapshot { .. } | Event::InlineSnapshot { .. } => {
+                match shapes::snapshot(path, &test.events[..index], event) {
+                    Some(result) => {
+                        result?;
+                        true
+                    }
+                    None => !ports.is_empty(),
+                }
+            }
+            Event::Assertion { .. } => !ports.is_empty(),
+        };
+        if !checked {
+            unchecked.push(index);
+        }
+    }
+    if !unchecked.is_empty() {
+        return Err(format!("no port checks events {unchecked:?}: add one to tests/upstream/ports/"));
+    }
+    ports.iter().try_for_each(|port| (port.run)(test))
+}
+
+fn panic_message(panic: &Box<dyn std::any::Any + Send>) -> String {
+    panic
+        .downcast_ref::<String>()
+        .cloned()
+        .or_else(|| panic.downcast_ref::<&str>().map(|s| (*s).to_owned()))
+        .unwrap_or_else(|| "panicked".into())
+}
+
+mod shapes {
+    use super::Event;
+
+    /// Checks a snapshot the harness can make from the events before it, or none when only a port
+    /// can.
+    pub fn snapshot(_path: &str, _before: &[Event], _snapshot: &Event) -> Option<Result<(), String>> {
+        None
+    }
+}

@@ -1,0 +1,5 @@
+# LF on every checkout, Windows included: the upstream suite compares text byte for byte.
+* text=auto eol=lf
+# GitHub collapses the vendored suite in diffs.
+tests/upstream/cases.json linguist-generated
+tests/upstream/suite/** linguist-vendored
