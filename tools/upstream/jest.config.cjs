@@ -10,7 +10,10 @@ module.exports = {
 	testMatch: ["<rootDir>/src/**/__tests__/*.test.ts"],
 	moduleFileExtensions: ["ts", "js", "json"],
 	testEnvironment: dependency("jest-environment-jsdom"),
-	testEnvironmentOptions: { url: "http://localhost/", customExportConditions: ["require", "node", "umd"] },
+	testEnvironmentOptions: {
+		url: "http://localhost/",
+		customExportConditions: ["require", "node", "umd"],
+	},
 	snapshotFormat: { escapeString: true, printBasicPrototype: true },
 	clearMocks: true,
 	setupFilesAfterEnv: [path.join(__dirname, "recorder.cjs")],

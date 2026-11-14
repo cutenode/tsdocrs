@@ -1,0 +1,239 @@
+name: Upstream
+
+# TSDoc's own suite (tests/upstream/), re-vendored when microsoft/tsdoc has a newer commit touching
+# tsdoc/src, as a pull request that says how tsdocrs does on it. Weekly and on demand.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 6 * * 4"
+
+permissions:
+  contents: read
+
+# Two runs at once would push the same branch.
+concurrency:
+  group: upstream
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # One API request (tools/upstream/latest.sh): the newest commit touching tsdoc/src, against the one
+  # tests/upstream/manifest.json was vendored from.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      newer: ${{ steps.latest.outputs.newer }}
+      current: ${{ steps.latest.outputs.current }}
+      latest: ${{ steps.latest.outputs.latest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: latest
+        run: |
+          latest=$(tools/upstream/latest.sh)
+          current=$(jq -r .commit tests/upstream/manifest.json)
+          if [[ $latest == "$current" ]]; then
+            echo "::notice::tests/upstream is at microsoft/tsdoc's newest tsdoc/src commit, $current"
+            echo "newer=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "newer=true"
+            echo "current=$current"
+            echo "latest=$latest"
+          } >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # The suite vendored at the newer commit and the harness run on it. This runs upstream's Jest suite
+  # and the npm packages it installs, so it gets no secrets and no write access: it only uploads
+  # the vendored files and the pull request's body for `pr`. A vendor or build failure fails the
+  # job. Failing tests don't: the pull request lists them, and its CI fails on them.
+  update:
+    needs: check
+    if: ${{ needs.check.outputs.newer == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      changed: ${{ steps.changed.outputs.changed }}
+    env:
+      CURRENT: ${{ needs.check.outputs.current }}
+      LATEST: ${{ needs.check.outputs.latest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # vendor.sh runs upstream's Jest suite in Node.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: rustup toolchain install
+      - uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        with:
+          tool: cargo-nextest@0.9.149
+      # Fails with Jest's output when upstream's own suite fails at that commit.
+      - run: tools/upstream/vendor.sh "$LATEST"
+      # A commit that changes upstream's source and none of its tests or snapshots only moves
+      # manifest.json's commit and date, which isn't worth a pull request.
+      - id: changed
+        run: |
+          git add tests/upstream
+          others=$(git diff --cached --name-only -- tests/upstream ':!tests/upstream/manifest.json')
+          counts() { jq -cS 'del(.commit, .date)'; }
+          old=$(git show HEAD:tests/upstream/manifest.json | counts)
+          new=$(counts < tests/upstream/manifest.json)
+          if [[ -z $others && $old == "$new" ]]; then
+            echo "::notice::microsoft/tsdoc@$LATEST changes none of TSDoc's tests or snapshots, so there's nothing to update"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      # The harness on the new suite, as libtest's JSON. nextest exits 100 when the run finished with
+      # failing tests, which the pull request reports. Anything else, like a build failure, fails
+      # here.
+      - if: ${{ steps.changed.outputs.changed == 'true' }}
+        run: |
+          status=0
+          cargo nextest run --locked --test upstream --no-fail-fast --message-format libtest-json-plus \
+            > "$RUNNER_TEMP/upstream.jsonl" || status=$?
+          if [[ $status != 0 && $status != 100 ]]; then
+            echo "::error::cargo nextest exited $status"
+            exit "$status"
+          fi
+        env:
+          # nextest's libtest JSON output is still behind this.
+          NEXTEST_EXPERIMENTAL_LIBTEST_JSON: 1
+      # What `pr` takes: the files vendor.sh writes, and the body.
+      - if: ${{ steps.changed.outputs.changed == 'true' }}
+        run: |
+          out=$RUNNER_TEMP/upstream
+          mkdir -p "$out/tests/upstream"
+          cp -R tests/upstream/suite tests/upstream/cases.json tests/upstream/manifest.json "$out/tests/upstream/"
+          results=$RUNNER_TEMP/upstream.jsonl
+          tests() { jq -s --arg event "$1" '[.[] | select(.type == "test" and .event == $event)]' "$results"; }
+          passed=$(tests ok | jq length)
+          failed=$(tests failed | jq length)
+          date=$(jq -r .date tests/upstream/manifest.json)
+          {
+            if (( failed > 0 )); then
+              echo "**$failed of $((passed + failed)) upstream tests fail on this suite.** CI on this pull request fails until they pass or tests/upstream/allowlist.json lists them."
+              echo
+            fi
+            echo "TSDoc's own suite at microsoft/tsdoc@$LATEST ($date), from $CURRENT: https://github.com/microsoft/tsdoc/compare/$CURRENT...$LATEST"
+            echo
+            echo "$passed passed, $failed failed."
+            echo
+            echo "Changes in tests/upstream/suite:"
+            echo
+            echo '```'
+            git diff --cached --stat -- tests/upstream/suite
+            echo '```'
+            if (( failed > 0 )); then
+              echo
+              echo "## Failing tests"
+              # The first 50, under the body's size limit, each with the first lines of its error:
+              # what libtest-mimic prints between `---- <name> ----` and its closing `failures:` list.
+              tests failed | jq -r '.[:50][] |
+                (.stdout // "" | split("\n")) as $lines |
+                ([$lines | to_entries[] | select(.value | startswith("---- ")) | .key][0]) as $start |
+                (if $start == null then $lines else $lines[$start + 1:] end) as $rest |
+                ([$rest | to_entries[] | select(.value == "failures:") | .key][0] // ($rest | length)) as $end |
+                "\n### `\(.name | sub("^[^$]*\\$"; ""))`\n\n```\n\($rest[:$end] | map(select(. != "")) | .[:8] | join("\n"))\n```"'
+              if (( failed > 50 )); then
+                echo
+                echo "And $((failed - 50)) more."
+              fi
+            fi
+          } > "$out/body.md"
+          cat "$out/body.md" >> "$GITHUB_STEP_SUMMARY"
+      - if: ${{ steps.changed.outputs.changed == 'true' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream
+          path: ${{ runner.temp }}/upstream/
+          if-no-files-found: error
+          retention-days: 7
+
+  # The pull request, from update's files. It runs none of the code update ran (no npm, Node or
+  # cargo), and takes only the files vendor.sh writes, checking nothing else changed before it gets
+  # the app's token.
+  pr:
+    needs: [check, update]
+    if: ${{ needs.update.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Holds the app's client id and key, and deploys only from the default branch, so a run on
+    # another branch can't read them.
+    environment: upstream
+    env:
+      CURRENT: ${{ needs.check.outputs.current }}
+      LATEST: ${{ needs.check.outputs.latest }}
+      BRANCH: bnb/upstream-tsdoc
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: upstream
+          path: ${{ runner.temp }}/upstream
+      - run: |
+          in=$RUNNER_TEMP/upstream
+          rm -rf tests/upstream/suite
+          cp -R "$in/tests/upstream/suite" "$in/tests/upstream/cases.json" "$in/tests/upstream/manifest.json" tests/upstream/
+          outside=$(git status --porcelain --untracked-files=all |
+            grep -Ev '^.. tests/upstream/(suite/|cases\.json$|manifest\.json$)' || true)
+          if [[ -n $outside ]]; then
+            echo "::error::update changed files besides the vendored suite:"
+            echo "$outside"
+            exit 1
+          fi
+          if [[ ! $LATEST =~ ^[0-9a-f]{40}$ || $(jq -r .commit tests/upstream/manifest.json) != "$LATEST" ]]; then
+            echo "::error::tests/upstream/manifest.json isn't at microsoft/tsdoc@$LATEST"
+            exit 1
+          fi
+      # An app's token rather than GITHUB_TOKEN, since a push or pull request made with GITHUB_TOKEN
+      # starts no workflows, and the pull request needs CI. It can write contents and pull requests,
+      # in this repository only. The workflow's own token stays read-only.
+      - id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.UPSTREAM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.UPSTREAM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+      # The branch is this workflow's alone, so each run replaces it with one commit on the default
+      # branch, and updates the pull request if one is open. No hooks run: nothing here runs
+      # repository code once the token exists.
+      - run: |
+          title="test: update TSDoc's suite to ${LATEST:0:7}"
+          bot="${APP_SLUG}[bot]"
+          id=$(gh api "users/${APP_SLUG}%5Bbot%5D" --jq .id)
+          git add tests/upstream
+          git -c core.hooksPath=/dev/null -c user.name="$bot" -c user.email="$id+$bot@users.noreply.github.com" \
+            commit --no-verify --quiet -m "$title" -m "https://github.com/microsoft/tsdoc/compare/$CURRENT...$LATEST"
+          gh auth setup-git
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+          body=$RUNNER_TEMP/upstream/body.md
+          pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [[ -n $pr ]]; then
+            gh pr edit "$pr" --title "$title" --body-file "$body"
+          else
+            gh pr create --base "$BASE" --head "$BRANCH" --title "$title" --body-file "$body"
+          fi
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          BASE: ${{ github.event.repository.default_branch }}

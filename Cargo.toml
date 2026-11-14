@@ -9,7 +9,15 @@ readme = "README.md"
 repository = "https://github.com/cutenode/tsdocrs"
 keywords = ["tsdoc", "typescript", "documentation", "parser", "jsdoc"]
 categories = ["parser-implementations", "development-tools"]
-exclude = ["/npm", "/fuzz", "/tools", "/tests/upstream", "/package.json", "/package-lock.json", "/.npmrc"]
+exclude = [
+    "/npm",
+    "/fuzz",
+    "/tools",
+    "/tests/upstream",
+    "/package.json",
+    "/package-lock.json",
+    "/.npmrc",
+]
 
 [lints.rust]
 missing_docs = "warn"
@@ -37,7 +45,13 @@ tempfile = "3.27.0"
 [features]
 default = ["config-file"]
 # tsdoc.json loading, which reads files and resolves `extends` the way Node does.
-config-file = ["dep:dunce", "dep:indexmap", "dep:json-strip-comments", "dep:oxc_resolver", "dep:serde_json"]
+config-file = [
+    "dep:dunce",
+    "dep:indexmap",
+    "dep:json-strip-comments",
+    "dep:oxc_resolver",
+    "dep:serde_json",
+]
 
 # TSDoc's own test suite, vendored in tests/upstream/ (tools/upstream/vendor.sh), run against this
 # crate. libtest-mimic makes each upstream test a test of its own.

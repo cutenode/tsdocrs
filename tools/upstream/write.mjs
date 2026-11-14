@@ -20,13 +20,19 @@ let snapshots = 0;
 for (const file of files) {
 	tests += file.tests.length;
 	// A .snap file is CommonJS: `exports[key] = value`, as Jest itself evaluates it.
-	const snapPath = path.join(checkout, path.dirname(file.path), "__snapshots__", `${path.basename(file.path)}.snap`);
+	const snapPath = path.join(
+		checkout,
+		path.dirname(file.path),
+		"__snapshots__",
+		`${path.basename(file.path)}.snap`,
+	);
 	const snap = fs.existsSync(snapPath) ? require(snapPath) : {};
 	for (const event of file.tests.flatMap((test) => test.events)) {
 		if (event.type === "inlineSnapshot") snapshots++;
 		if (event.type !== "snapshot") continue;
 		snapshots++;
-		if (!Object.hasOwn(snap, event.key)) throw new Error(`${file.path}: no snapshot ${JSON.stringify(event.key)}`);
+		if (!Object.hasOwn(snap, event.key))
+			throw new Error(`${file.path}: no snapshot ${JSON.stringify(event.key)}`);
 		event.expected = snap[event.key];
 	}
 }

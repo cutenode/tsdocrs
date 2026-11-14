@@ -1,0 +1,10 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"ignorePatterns": [
+		"*.md",
+		"tests/upstream/suite/**",
+		"tests/upstream/cases.json",
+		"fuzz/corpus/**",
+		"npm/tsdocrs/pkg/**"
+	]
+}

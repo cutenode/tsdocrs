@@ -1,0 +1,10 @@
+# `cargo coverage`: the tests under cargo-llvm-cov, failing below the thresholds for lines,
+# functions and regions. `cargo coverage --test props` is the Hegel properties alone, held to the
+# same thresholds. Run both with HEGEL_DERANDOMIZE=true, as tools/coverage.sh does, so Hegel draws
+# the same cases every run and the numbers don't move. The report lists any uncovered lines, so a
+# failure on CI says where.
+#
+# The thresholds are placeholders until the parser lands. Then each goes just under what the suite
+# reaches, and moves up with it.
+[alias]
+coverage = "llvm-cov nextest --no-fail-fast --show-missing-lines --fail-under-lines 90 --fail-under-functions 90 --fail-under-regions 90"

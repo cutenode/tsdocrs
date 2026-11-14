@@ -1,0 +1,11 @@
+# typos (tools/lint.sh).
+
+[files]
+# TSDoc's own tests and what they record, vendored as they are.
+extend-exclude = ["tests/upstream/suite/", "tests/upstream/cases.json"]
+
+[default]
+extend-ignore-re = [
+    # Hashes, like upstream commit shas.
+    '\b[0-9a-f]{16,}\b',
+]
