@@ -190,13 +190,13 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      # wasm-bindgen-cli has to be the version of the wasm-bindgen crate in Cargo.lock, or it refuses
-      # the module. Dependabot bumps the crate, and this follows.
+      # wasm-bindgen-cli has to be the version of the wasm-bindgen crate npm/tsdocrs pins, or it
+      # refuses the module. Dependabot bumps the pin, and this follows.
       - id: wasm-bindgen
         run: |
-          version=$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print }' Cargo.lock)
+          version=$(sed -n 's/^wasm-bindgen = "=\(.*\)"$/\1/p' npm/tsdocrs/Cargo.toml)
           if [[ -z $version ]]; then
-            echo "::error file=Cargo.lock::no wasm-bindgen in Cargo.lock"
+            echo "::error file=npm/tsdocrs/Cargo.toml::no exact wasm-bindgen pin"
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"

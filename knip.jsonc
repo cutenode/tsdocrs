@@ -3,17 +3,18 @@
 	"workspaces": {
 		".": {
 			// tools/upstream/vendor.sh runs write.mjs and Jest with jest.config.cjs, which loads
-			// recorder.cjs by path. knip only looks for entries in package.json scripts. The tests run
-			// with `node --test`, which it doesn't see either.
-			"entry": ["tools/**/*.{mjs,cjs}", "**/*.test.mjs"],
+			// recorder.cjs by path, and the tests run tools/oracle/oracle.mjs. knip only looks for
+			// entries in package.json scripts.
+			"entry": ["tools/**/*.{mjs,cjs}"],
 			// TSDoc's own tests, vendored as they are. Their imports are upstream's source, which
 			// isn't here.
 			"ignore": ["tests/upstream/suite/**"],
 		},
 		// The npm package. The root package.json lists no workspaces, so knip only finds it here, and
-		// then takes its package.json's entries.
+		// then takes its package.json's entries. Its tests run with `node --test`, which knip doesn't
+		// see.
 		"npm/tsdocrs": {
-			"ignore": ["pkg/**"],
+			"entry": ["*.test.mjs"],
 		},
 	},
 }

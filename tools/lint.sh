@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Formatting, clippy (with and without default features, and for wasm32-unknown-unknown when it's
-# installed), rustdoc, the npm config's hardening, and the linters below where they're installed.
+# Formatting, clippy (with and without default features, and the npm package for
+# wasm32-unknown-unknown when that's installed), rustdoc, the npm config's hardening, and the linters below where they're installed.
 # CI's lint check. CI's Linux lint job installs them all and sets REQUIRE_LINTERS=true, so there a
 # missing one fails instead of being skipped.
 set -euo pipefail
@@ -41,14 +41,18 @@ for dir in . npm/tsdocrs; do
 	fi
 done
 
-cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings
-# Without config-file, the build that reads no files.
-cargo clippy --workspace --all-targets --no-default-features -- -D warnings
-# The library as npm/tsdocrs builds it, so code or a dependency that doesn't build for wasm fails
-# here and not in the npm job. CI's lint jobs install the target.
+# The crate, and npm/tsdocrs and fuzz/, which are workspaces of their own.
+for manifest in Cargo.toml npm/tsdocrs/Cargo.toml fuzz/Cargo.toml; do
+	cargo fmt --check --manifest-path "$manifest"
+done
+cargo clippy --all-targets -- -D warnings
+# Without config-file, the library that reads no files, as npm/tsdocrs builds it. The tests load
+# tsdoc.json files.
+cargo clippy --lib --no-default-features -- -D warnings
+# npm/tsdocrs for wasm, so code or a dependency that doesn't build there fails here and not in the
+# npm job. CI's lint jobs install the target.
 if rustup target list --installed | grep -qx wasm32-unknown-unknown; then
-	cargo clippy --workspace --lib --target wasm32-unknown-unknown -- -D warnings
+	cargo clippy --manifest-path npm/tsdocrs/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
 fi
 # Broken intra-doc links and bare URLs, which clippy doesn't check.
 RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --locked --document-private-items

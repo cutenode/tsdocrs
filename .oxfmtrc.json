@@ -4,6 +4,7 @@
 		"*.md",
 		"tests/upstream/suite/**",
 		"tests/upstream/cases.json",
+		"tests/fixtures/corpus.json",
 		"fuzz/corpus/**",
 		"npm/tsdocrs/pkg/**"
 	]
