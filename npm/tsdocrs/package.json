@@ -1,0 +1,45 @@
+{
+	"name": "tsdocrs",
+	"version": "0.1.0",
+	"description": "A TSDoc parser compiled to WebAssembly: the tree and messages @microsoft/tsdoc gives, from Rust",
+	"keywords": [
+		"documentation",
+		"parser",
+		"tsdoc",
+		"typescript",
+		"wasm"
+	],
+	"homepage": "https://github.com/cutenode/tsdocrs#readme",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/cutenode/tsdocrs.git",
+		"directory": "npm/tsdocrs"
+	},
+	"files": [
+		"pkg/tsdocrs.js",
+		"pkg/tsdocrs.d.ts",
+		"pkg/tsdocrs_bg.wasm",
+		"pkg/tsdocrs_bg.wasm.d.ts"
+	],
+	"type": "commonjs",
+	"main": "pkg/tsdocrs.js",
+	"types": "pkg/tsdocrs.d.ts",
+	"exports": {
+		".": {
+			"types": "./pkg/tsdocrs.d.ts",
+			"default": "./pkg/tsdocrs.js"
+		}
+	},
+	"devEngines": {
+		"packageManager": {
+			"name": "npm",
+			"version": ">=11.17.0",
+			"onFail": "error"
+		}
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"allowScripts": {}
+}
