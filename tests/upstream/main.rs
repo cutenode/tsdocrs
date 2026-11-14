@@ -5,6 +5,8 @@
 //! it passes: the allowlist only holds tests that fail.
 
 mod harness;
+mod shapes;
+mod snapshot;
 mod ports {
     automod::dir!("tests/upstream/ports");
 }
@@ -58,23 +60,32 @@ fn check(path: &str, test: &Test) -> Result<(), String> {
     for (index, event) in test.events.iter().enumerate() {
         let checked = match event {
             Event::Parse { .. } | Event::TextRange { .. } => true,
-            Event::Snapshot { .. } | Event::InlineSnapshot { .. } => {
-                match shapes::snapshot(path, &test.events[..index], event) {
-                    Some(result) => {
-                        result?;
-                        true
-                    }
-                    None => !ports.is_empty(),
+            Event::Snapshot { key, .. } => match shapes::snapshot(path, test, index) {
+                Some(result) => {
+                    result.map_err(|error| format!("{key}: {error}"))?;
+                    true
                 }
-            }
+                None => !ports.is_empty(),
+            },
+            Event::InlineSnapshot { .. } => match shapes::snapshot(path, test, index) {
+                Some(result) => {
+                    result.map_err(|error| format!("inline snapshot: {error}"))?;
+                    true
+                }
+                None => !ports.is_empty(),
+            },
             Event::Assertion { .. } => !ports.is_empty(),
         };
         if !checked {
-            unchecked.push(index);
+            unchecked.push(match event {
+                Event::Assertion { matcher } => format!("expect().{matcher}"),
+                Event::Snapshot { key, .. } => format!("snapshot {key:?}"),
+                _ => "an inline snapshot".into(),
+            });
         }
     }
     if !unchecked.is_empty() {
-        return Err(format!("no port checks events {unchecked:?}: add one to tests/upstream/ports/"));
+        return Err(format!("nothing here checks {}: add a port to tests/upstream/ports/", unchecked.join(", ")));
     }
     ports.iter().try_for_each(|port| (port.run)(test))
 }
@@ -87,12 +98,3 @@ fn panic_message(panic: &Box<dyn std::any::Any + Send>) -> String {
         .unwrap_or_else(|| "panicked".into())
 }
 
-mod shapes {
-    use super::Event;
-
-    /// Checks a snapshot the harness can make from the events before it, or none when only a port
-    /// can.
-    pub fn snapshot(_path: &str, _before: &[Event], _snapshot: &Event) -> Option<Result<(), String>> {
-        None
-    }
-}
