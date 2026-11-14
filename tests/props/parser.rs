@@ -23,7 +23,12 @@ fn text(tc: &TestCase) -> String {
 #[hegel::test(test_cases = 300)]
 fn tokens_spell_out_each_line(tc: TestCase) {
     let text = text(&tc);
+    // Without a comment there are no lines, and nothing to tokenize.
     let Ok(context) = TSDocParser::default().parse_string(&text) else { return };
+    if context.tokens.is_empty() {
+        assert!(context.lines.is_empty());
+        return;
+    }
     let mut tokens = context.tokens.iter().peekable();
     for &line in &context.lines {
         let mut spelled = String::new();

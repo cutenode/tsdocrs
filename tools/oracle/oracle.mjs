@@ -4,7 +4,6 @@
 // entry of a corpus file. `config` is a tsdoc.json's keys, set up the way @microsoft/tsdoc-config
 // does. Offsets are UTF-8 bytes, as Rust's strings index.
 import { readFileSync, writeFileSync } from "node:fs";
-import { createInterface } from "node:readline";
 import {
 	DocErrorText,
 	DocExcerpt,
@@ -85,8 +84,18 @@ export function run({ comment, config }) {
 
 const [mode, file] = process.argv.slice(2);
 if (mode === "--serve") {
-	for await (const line of createInterface({ input: process.stdin })) {
-		process.stdout.write(JSON.stringify(run(JSON.parse(line))) + "\n");
+	// One request a line. readline would also break lines at U+2028 and U+2029, which JSON leaves
+	// as they are inside strings, so this splits at "\n" only.
+	let buffered = "";
+	process.stdin.setEncoding("utf8");
+	for await (const chunk of process.stdin) {
+		buffered += chunk;
+		let end;
+		while ((end = buffered.indexOf("\n")) !== -1) {
+			const line = buffered.slice(0, end);
+			buffered = buffered.slice(end + 1);
+			process.stdout.write(JSON.stringify(run(JSON.parse(line))) + "\n");
+		}
 	}
 } else if (mode === "--record") {
 	const entries = JSON.parse(readFileSync(file, "utf8"));
