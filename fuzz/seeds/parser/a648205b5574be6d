@@ -1,0 +1,5 @@
+/**
+ * {@link Class1..member2}
+ * {@link .member3}
+ * {@link member4.}
+ */

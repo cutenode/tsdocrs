@@ -1,0 +1,6 @@
+/**
+ * This is a code fence with all parts:
+ * ```a language!   
+ *   some `code` here
+ * ```   
+ */

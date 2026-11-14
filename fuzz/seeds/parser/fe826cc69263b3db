@@ -1,0 +1,5 @@
+/**
+ * {@link ../path1#}
+ * {@link ./path2#}
+ * {@link ./path3/../path4#}
+ */

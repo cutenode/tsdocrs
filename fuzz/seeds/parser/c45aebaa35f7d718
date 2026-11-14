@@ -1,0 +1,8 @@
+/**
+ * {@link http://example1.com spaces}
+ * {@link http://example2.com spaces|link text}
+ * {@link ftp+ssh://example3.com}
+ * {@link mailto:bob@example4.com}
+ * {@link //example5.com}
+ * {@link http://}
+ */

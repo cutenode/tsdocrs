@@ -1,0 +1,8 @@
+/**
+ * {@link example1/#}
+ * {@link example2/a//b#}
+ * {@link @scope/ex@mple3#}
+ * {@link @/example4#}
+ * {@link @scope//my-example5#}
+ * {@link @scope#}
+ */

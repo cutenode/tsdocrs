@@ -1,0 +1,9 @@
+/**
+ * <tag-e attr-one="one" two='two'/>
+ * <tag-f
+ *   attr-one
+ *   = "one"
+ *   two
+ *   = 'two'
+ * />
+ */

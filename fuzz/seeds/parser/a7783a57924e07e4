@@ -1,0 +1,7 @@
+/**
+ * <tag-a attr-one="one" >
+ * <tag-b
+ *   attr-two
+ *   = "2"
+ * />
+ */

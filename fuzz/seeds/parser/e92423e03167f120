@@ -1,0 +1,8 @@
+/**
+ * <tag-a attr -one="one" />
+ * <tag-b attr- two="two" />
+ * <tag-c attr-three='three" />
+ * <tag-d attr-four=@"four" />
+ * <tag-e attr-five@="five" />
+ * <tag-f attr-six="six"seven="seven" />
+ */

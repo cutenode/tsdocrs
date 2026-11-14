@@ -1,0 +1,9 @@
+/**
+ * <tag-c attr-three="3" four='4'/>
+ * <tag-d
+ *   attr-five
+ *   = "5"
+ *   six
+ *   = '6'
+ * />
+ */

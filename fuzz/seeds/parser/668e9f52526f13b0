@@ -1,0 +1,6 @@
+/**
+ * Closing delimiter being indented:
+ * ```
+ * code
+ *      ```
+ */

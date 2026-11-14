@@ -1,0 +1,5 @@
+/**
+ * {@link http://example1.com}
+ * {@link https://example2.com#hash|link text}
+ * {@link customscheme://data}
+ */

@@ -1,0 +1,6 @@
+/**
+ * {@link (Class1:class)}
+ * {@link (Class2:class).(member3:static)}
+ * {@link Class4.(member5:static)}
+ * {@link (Class6:class ) . ( member7:static)}
+ */
