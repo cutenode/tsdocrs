@@ -54,8 +54,10 @@ fn main() {
 /// Checks `test` from the upstream file at `path`: each snapshot the harness knows how to make,
 /// and the ports of the test, which it needs when it has other expectations.
 fn check(path: &str, test: &Test) -> Result<(), String> {
-    let ports: Vec<&Port> =
-        inventory::iter::<Port>.into_iter().filter(|port| port.file == path && port.template == test.template).collect();
+    let ports: Vec<&Port> = inventory::iter::<Port>
+        .into_iter()
+        .filter(|port| port.file == path && port.template == test.template)
+        .collect();
     let mut unchecked = Vec::new();
     for (index, event) in test.events.iter().enumerate() {
         let checked = match event {
@@ -97,4 +99,3 @@ fn panic_message(panic: &Box<dyn std::any::Any + Send>) -> String {
         .or_else(|| panic.downcast_ref::<&str>().map(|s| (*s).to_owned()))
         .unwrap_or_else(|| "panicked".into())
 }
-

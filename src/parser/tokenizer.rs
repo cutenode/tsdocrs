@@ -31,8 +31,8 @@ fn push_tokens_for_line(tokens: &mut Vec<Token>, buffer: &str, line: TextRange) 
         let (kind, at) = (kind_of(c), line.pos + at);
         match current {
             // Runs of these are one token; punctuation is one character each.
-            Some((same, _)) if same == kind && matches!(kind, TokenKind::Spacing | TokenKind::AsciiWord | TokenKind::Other) => {
-            }
+            Some((same, _))
+                if same == kind && matches!(kind, TokenKind::Spacing | TokenKind::AsciiWord | TokenKind::Other) => {}
             _ => {
                 if let Some((kind, pos)) = current {
                     tokens.push(Token { kind, range: TextRange::new(pos, at), line });

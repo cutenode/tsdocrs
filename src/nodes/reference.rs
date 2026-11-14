@@ -189,8 +189,8 @@ fn classify(selector: &str) -> (SelectorKind, Option<String>) {
         return error("The selector cannot be an empty string".into());
     }
     if first.is_some_and(|c| c.is_ascii_digit()) {
-        let index = selector.starts_with(|c: char| ('1'..='9').contains(&c))
-            && selector.chars().all(|c| c.is_ascii_digit());
+        let index =
+            selector.starts_with(|c: char| ('1'..='9').contains(&c)) && selector.chars().all(|c| c.is_ascii_digit());
         if index {
             return (SelectorKind::Index, None);
         }

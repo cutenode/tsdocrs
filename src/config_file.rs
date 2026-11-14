@@ -42,7 +42,6 @@ fn error(path: &Path, message_id: TSDocMessageId, text: impl std::fmt::Display) 
     ConfigError { path: path.to_owned(), message_id, text: text.to_string() }
 }
 
-
 /// A tsdoc.json and the files it extends, read.
 struct Loaded {
     path: PathBuf,
@@ -79,7 +78,8 @@ fn read(path: &Path, resolver: &Resolver, chain: &mut Vec<PathBuf>) -> Result<Lo
         let text = format!("expected a \"$schema\" of \"{SCHEMA}\"");
         return Err(error(path, TSDocMessageId::ConfigFileUnsupportedSchema, text));
     }
-    let file = TSDocConfigFile::deserialize(value).map_err(|e| error(path, TSDocMessageId::ConfigFileSchemaError, e))?;
+    let file =
+        TSDocConfigFile::deserialize(value).map_err(|e| error(path, TSDocMessageId::ConfigFileSchemaError, e))?;
     file.check().map_err(|(message_id, text)| error(path, message_id, text))?;
     let dir = real.parent().expect("a file is in a folder").to_owned();
     chain.push(real);

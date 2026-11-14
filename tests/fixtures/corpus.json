@@ -57,7 +57,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * line 1\n * line 2\n */\n"
 		}
 	},
 	{
@@ -72,7 +73,8 @@
 						"kind": "Section"
 					}
 				]
-			}
+			},
+			"emitted": ""
 		}
 	},
 	{
@@ -105,7 +107,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": ""
 		}
 	},
 	{
@@ -148,7 +151,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": ""
 		}
 	},
 	{
@@ -208,7 +212,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * \\$\\@param\n */\n"
 		}
 	},
 	{
@@ -323,7 +328,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * letter: \\A space: \\ end of line: \\\n */\n"
 		}
 	},
 	{
@@ -427,7 +433,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * line `1`\n * line ` 2` sdf\n */\n"
 		}
 	},
 	{
@@ -495,7 +502,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * M`&`M\n */\n"
 		}
 	},
 	{
@@ -592,7 +600,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * `multi\n * line`\n */\n"
 		}
 	},
 	{
@@ -643,7 +652,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ``\n */\n"
 		}
 	},
 	{
@@ -721,7 +731,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * This is a code fence with all parts:\n * ```a language!\n *   some `code` here\n * ```\n *\n */\n"
 		}
 	},
 	{
@@ -799,7 +810,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * This is a code fence with no language or trailing whitespace:\n * ```\n *   some `code` here\n * ```\n *\n */\n"
 		}
 	},
 	{
@@ -879,7 +891,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Code fence incorrectly indented:\n *  ```\n */\n"
 		}
 	},
 	{
@@ -959,7 +972,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Code fence not starting the line:\n * a```\n */\n"
 		}
 	},
 	{
@@ -1030,7 +1044,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Code fence not being terminated 1:\n * ```\n */\n"
 		}
 	},
 	{
@@ -1110,7 +1125,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Code fence not being terminated 2:\n * ``` some stuff\n */\n"
 		}
 	},
 	{
@@ -1208,7 +1224,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Language having backticks:\n * ``` some stuff ```\n */\n"
 		}
 	},
 	{
@@ -1293,7 +1310,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Closing delimiter being indented:\n * ```\n * code\n * ```\n *\n */\n"
 		}
 	},
 	{
@@ -1401,7 +1419,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Closing delimiter not being on a line by itself:\n * ```\n * code\n * ```\n *\n * a\n */\n"
 		}
 	},
 	{
@@ -1598,7 +1617,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <tag/>\n * <tag-a />\n * <tag-b ><tag-c />\n * <tag-d\n * >\n * <tag-e\n *      />\n */\n"
 		}
 	},
 	{
@@ -1851,7 +1871,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * < tag/>\n * <tag -a />\n * <tag-b /<tag-c / >\n * <tag-d\n */\n"
 		}
 	},
 	{
@@ -1989,7 +2010,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <tag-a attr-one=\"one\" >\n * <tag-b\n *   attr-two\n *   = \"2\"\n * />\n */\n"
 		}
 	},
 	{
@@ -2175,7 +2197,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <tag-c attr-three=\"3\" four='4'/>\n * <tag-d\n *   attr-five\n *   = \"5\"\n *   six\n *   = '6'\n * />\n */\n"
 		}
 	},
 	{
@@ -2361,7 +2384,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <tag-e attr-one=\"one\" two='two'/>\n * <tag-f\n *   attr-one\n *   = \"one\"\n *   two\n *   = 'two'\n * />\n */\n"
 		}
 	},
 	{
@@ -2769,7 +2793,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <tag-a attr -one=\"one\" />\n * <tag-b attr- two=\"two\" />\n * <tag-c attr-three='three\" />\n * <tag-d attr-four=@\"four\" />\n * <tag-e attr-five@=\"five\" />\n * <tag-f attr-six=\"six\"seven=\"seven\" />\n */\n"
 		}
 	},
 	{
@@ -2867,7 +2892,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <tag-g attr=\"multi\n * line\" />\n */\n"
 		}
 	},
 	{
@@ -2942,7 +2968,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <tag attr-one=\"@tag\" />\n */\n"
 		}
 	},
 	{
@@ -3055,7 +3082,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * </tag-a>\n * </tag-b>\n * </tag-c>\n */\n"
 		}
 	},
 	{
@@ -3226,7 +3254,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * </tag-a/>\n * </ tag-b>\n * </tag-c\n */\n"
 		}
 	},
 	{
@@ -3330,7 +3359,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a1/>\n * <a-a>\n * <a--9->\n */\n"
 		}
 	},
 	{
@@ -3519,7 +3549,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <1a/>\n * <a.a>\n * <_a>\n */\n"
 		}
 	},
 	{
@@ -3569,7 +3600,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritDoc}\n */\n"
 		}
 	},
 	{
@@ -3660,7 +3692,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritDoc Class.member}\n */\n"
 		}
 	},
 	{
@@ -3771,7 +3804,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritDoc package#Class.member}\n */\n"
 		}
 	},
 	{
@@ -3836,7 +3870,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritDoc | link text}\n */\n"
 		}
 	},
 	{
@@ -3901,7 +3936,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritDoc Class % junk}\n */\n"
 		}
 	},
 	{
@@ -3980,7 +4016,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritDoc}\n * {@inheritDoc}\n */\n"
 		}
 	},
 	{
@@ -4096,7 +4133,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * summary text\n *\n * @remarks{@inheritDoc}\n */\n"
 		}
 	},
 	{
@@ -4161,7 +4199,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritdoc @scope/library:IDisposable.isDisposed}\n */\n"
 		}
 	},
 	{
@@ -4485,7 +4524,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link http://example1.com}\n * {@link http://example2.com}\n * {@link http://example3.com}\n * {@link http://example4.com | link text}\n * 1{@link http://example5.com | link\n * text}2\n * 3{@link http://example5.com | link text}4\n */\n"
 		}
 	},
 	{
@@ -4583,7 +4623,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link}\n * {@link http://example1.com| link | text}\n */\n"
 		}
 	},
 	{
@@ -4719,7 +4760,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link http://example1.com}\n * {@link https://example2.com#hash | link text}\n * {@link customscheme://data}\n */\n"
 		}
 	},
 	{
@@ -4989,7 +5031,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link http://example1.com spaces}\n * {@link http://example2.com spaces|link text}\n * {@link ftp+ssh://example3.com}\n * {@link mailto:bob@example4.com}\n * {@link //example5.com}\n * {@link http://}\n */\n"
 		}
 	},
 	{
@@ -5244,7 +5287,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link my-example1#}\n * {@link my-example2/path3#}\n * {@link my-example4/path5/path6#}\n * {@link @scope/my-example7/path8/path9#}\n * {@link @scope/my-example7#}\n */\n"
 		}
 	},
 	{
@@ -5514,7 +5558,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link example1/#}\n * {@link example2/a//b#}\n * {@link @scope/ex@mple3#}\n * {@link @/example4#}\n * {@link @scope//my-example5#}\n * {@link @scope#}\n */\n"
 		}
 	},
 	{
@@ -5661,7 +5706,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link @#}\n * {@link #}\n * {@link #Button}\n */\n"
 		}
 	},
 	{
@@ -5816,7 +5862,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link ../path1#}\n * {@link ./path2#}\n * {@link ./path3/../path4#}\n */\n"
 		}
 	},
 	{
@@ -5922,7 +5969,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link /path1#}\n * {@link /path1 path2#}\n */\n"
 		}
 	},
 	{
@@ -6182,7 +6230,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Class1}\n * {@link Class2.member2}\n * {@link namespace3.namespace4.namespace5 | link text}\n */\n"
 		}
 	},
 	{
@@ -6329,7 +6378,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Class1..member2}\n * {@link .member3}\n * {@link member4.}\n */\n"
 		}
 	},
 	{
@@ -6748,7 +6798,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Class1:class)}\n * {@link (Class2:class).(member3:static)}\n * {@link Class4.(member5:static)}\n * {@link (Class6:class).(member7:static)}\n */\n"
 		}
 	},
 	{
@@ -7065,7 +7116,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Class1:class}\n * {@link (Class2:class))}\n * {@link (Class3::class)}\n * {@link (Class4 class)}\n * {@link (member5:badname)}\n * {@link (Class6:class)(member:static)}\n * {@link Class7:class}\n */\n"
 		}
 	},
 	{
@@ -7250,7 +7302,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Class1:LABEL1)}\n * {@link (function2:MY_LABEL2)}\n */\n"
 		}
 	},
 	{
@@ -7356,7 +7409,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Class1:Label)}\n * {@link (Class2:SPAß)}\n */\n"
 		}
 	},
 	{
@@ -7462,7 +7516,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (function2:3)}\n */\n"
 		}
 	},
 	{
@@ -7527,7 +7582,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (function2:03)}\n */\n"
 		}
 	},
 	{
@@ -7626,7 +7682,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Class$_1.$_1member}\n */\n"
 		}
 	},
 	{
@@ -7691,7 +7748,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Class-1}\n */\n"
 		}
 	},
 	{
@@ -7948,7 +8006,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link \"static\"}\n * {@link Class1.\"member\"}\n * {@link Class2.\"|\" | link text}\n */\n"
 		}
 	},
 	{
@@ -8136,7 +8195,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link \"static}\n * {@link Class1.\"\"}\n * {@link Class2.interface}\n * {@link Class3.1}\n */\n"
 		}
 	},
 	{
@@ -8450,7 +8510,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Class1.[WellknownSymbols.toStringPrimitive]}\n * {@link Class1.([WellknownSymbols.toStringPrimitive]:static) | link text}\n */\n"
 		}
 	},
 	{
@@ -8562,7 +8623,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Class1.[WellknownSymbols.toStringPrimitive}\n * {@link Class1.[]}\n */\n"
 		}
 	},
 	{
@@ -8744,7 +8806,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link ./lib/controls/Button#Button.([(WellknownSymbols:namespace).toStringPrimitive]:instance)}\n */\n"
 		}
 	},
 	{
@@ -8818,7 +8881,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @one\n * @two\n */\n"
 		}
 	},
 	{
@@ -8961,7 +9025,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @ one\n * +@two\n * @two+\n */\n"
 		}
 	},
 	{
@@ -9149,7 +9214,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@one}\n * {@two}\n * {@three}{@four}\n * {@five}\n */\n"
 		}
 	},
 	{
@@ -9402,7 +9468,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@ one}\n * {@two~}\n * { @three}\n * {@four\n */\n"
 		}
 	},
 	{
@@ -9509,7 +9576,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@one some content}\n * {@two multi\n * line}\n */\n"
 		}
 	},
 	{
@@ -9574,7 +9642,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@three @taglike}\n */\n"
 		}
 	},
 	{
@@ -9639,7 +9708,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@one left \\{ right \\} backslash \\\\ }\n */\n"
 		}
 	},
 	{
@@ -9708,7 +9778,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@one curly\\}\n */\n"
 		}
 	},
 	{
@@ -9823,7 +9894,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@two curly{}}\n */\n"
 		}
 	},
 	{
@@ -9884,7 +9956,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * three: }\n */\n"
 		}
 	},
 	{
@@ -9953,7 +10026,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @deprecated\n *\n * Use the other thing\n */\n"
 		}
 	},
 	{
@@ -10039,7 +10113,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @deprecated\n *\n * @public\n */\n"
 		}
 	},
 	{
@@ -10116,7 +10191,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n * @foo bar\n */\n"
 		}
 	},
 	{
@@ -10286,7 +10362,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n *\n * @remarks\n *\n * Some.\n *\n * @returns A value.\n *\n * @beta\n */\n"
 		}
 	},
 	{
@@ -10369,7 +10446,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary {@remarks inline}.\n */\n"
 		}
 	},
 	{
@@ -10446,7 +10524,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n * @link Foo\n */\n"
 		}
 	},
 	{
@@ -10529,7 +10608,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n *\n * @deprecated\n */\n"
 		}
 	},
 	{
@@ -10650,7 +10730,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n *\n * @deprecated\n *\n * Use `other` instead.\n */\n"
 		}
 	},
 	{
@@ -10791,7 +10872,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n *\n * @deprecated\n *\n * {@link Other | the other}\n */\n"
 		}
 	},
 	{
@@ -10923,7 +11005,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n *\n * @deprecated\n *\n * {@link Other}\n */\n"
 		}
 	},
 	{
@@ -11017,7 +11100,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n *\n * @deprecated\n *\n * \\@\n */\n"
 		}
 	},
 	{
@@ -11103,7 +11187,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @deprecated\n * ```\n * code\n * ```\n *\n */\n"
 		}
 	},
 	{
@@ -11182,7 +11267,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritDoc Foo}\n * {@inheritDoc}\n */\n"
 		}
 	},
 	{
@@ -11330,7 +11416,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Text.\n *\n * @remarks\n *\n * More.\n * {@inheritDoc Foo}\n */\n"
 		}
 	},
 	{
@@ -11395,7 +11482,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritDoc Foo|bar}\n */\n"
 		}
 	},
 	{
@@ -11460,7 +11548,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@inheritDoc Foo bar}\n */\n"
 		}
 	},
 	{
@@ -11551,7 +11640,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @foo text\n * {@inheritDoc}\n */\n"
 		}
 	},
 	{
@@ -11667,7 +11757,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n *\n * @custom\n *\n * thing\n *\n * @mark\n */\n"
 		}
 	},
 	{
@@ -11779,7 +11870,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary {@inl x}.\n * @inl\n */\n"
 		}
 	},
 	{
@@ -11893,7 +11985,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n * @param x - y\n * @remarks z\n */\n"
 		}
 	},
 	{
@@ -12065,7 +12158,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n *\n * @Remarks\n *\n * z\n *\n * @PARAM x - y\n *\n * @INTERNAL\n */\n"
 		}
 	},
 	{
@@ -12191,7 +12285,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Summary.\n *  extra text\n *\n * @public @internal @beta @sealed\n */\n"
 		}
 	},
 	{
@@ -12274,7 +12369,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -12369,7 +12465,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -12464,7 +12561,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -12559,7 +12657,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -12657,7 +12756,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param  - {string x - desc\n */\n"
 		}
 	},
 	{
@@ -12752,7 +12852,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -12847,7 +12948,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -12942,7 +13044,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -13041,7 +13144,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -13140,7 +13244,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -13239,7 +13344,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -13334,7 +13440,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -13405,7 +13512,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param  - 1x - desc\n */\n"
 		}
 	},
 	{
@@ -13476,7 +13584,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param  - - desc\n */\n"
 		}
 	},
 	{
@@ -13547,7 +13656,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param  - x.y - desc\n */\n"
 		}
 	},
 	{
@@ -13631,7 +13741,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param $x - desc\n */\n"
 		}
 	},
 	{
@@ -13693,7 +13804,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param  - \n */\n"
 		}
 	},
 	{
@@ -13751,7 +13863,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - \n */\n"
 		}
 	},
 	{
@@ -13810,7 +13923,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - \n */\n"
 		}
 	},
 	{
@@ -13896,7 +14010,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param x - desc\n */\n"
 		}
 	},
 	{
@@ -13979,7 +14094,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @typeParam T - desc\n */\n"
 		}
 	},
 	{
@@ -14063,7 +14179,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @typeParam T - desc\n */\n"
 		}
 	},
 	{
@@ -14183,7 +14300,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @param  - {@link Foo} x - desc\n */\n"
 		}
 	},
 	{
@@ -14253,7 +14371,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * a } b\n */\n"
 		}
 	},
 	{
@@ -14323,7 +14442,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * a > b\n */\n"
 		}
 	},
 	{
@@ -14410,7 +14530,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * \\a and \\{ and \\\\\n */\n"
 		}
 	},
 	{
@@ -14471,7 +14592,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ends with \\\n */\n"
 		}
 	},
 	{
@@ -14541,7 +14663,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * a@b\n */\n"
 		}
 	},
 	{
@@ -14601,7 +14724,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @ x\n */\n"
 		}
 	},
 	{
@@ -14662,7 +14786,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * x @\n */\n"
 		}
 	},
 	{
@@ -14740,7 +14865,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {x}\n */\n"
 		}
 	},
 	{
@@ -14810,7 +14936,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@}\n */\n"
 		}
 	},
 	{
@@ -14889,7 +15016,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@ x}\n */\n"
 		}
 	},
 	{
@@ -14950,7 +15078,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * a {\n */\n"
 		}
 	},
 	{
@@ -15010,7 +15139,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @foo-bar\n */\n"
 		}
 	},
 	{
@@ -15070,7 +15200,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @foo.\n */\n"
 		}
 	},
 	{
@@ -15131,7 +15262,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @1abc\n */\n"
 		}
 	},
 	{
@@ -15192,7 +15324,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * @_x\n */\n"
 		}
 	},
 	{
@@ -15271,7 +15404,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@1x}\n */\n"
 		}
 	},
 	{
@@ -15350,7 +15484,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link:x}\n */\n"
 		}
 	},
 	{
@@ -15400,7 +15535,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@label}\n */\n"
 		}
 	},
 	{
@@ -15460,7 +15596,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link x\n */\n"
 		}
 	},
 	{
@@ -15526,7 +15663,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link x\n * y}\n */\n"
 		}
 	},
 	{
@@ -15650,7 +15788,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link {x}}\n */\n"
 		}
 	},
 	{
@@ -15756,7 +15895,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link x\\a}\n */\n"
 		}
 	},
 	{
@@ -15821,7 +15961,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link x\\}}\n */\n"
 		}
 	},
 	{
@@ -15913,7 +16054,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@label A} {@label B}\n */\n"
 		}
 	},
 	{
@@ -15978,7 +16120,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@foo x}\n */\n"
 		}
 	},
 	{
@@ -16106,7 +16249,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Text.\n *\n * @see\n *\n * Foo\n *\n * @see\n *\n * Bar\n */\n"
 		}
 	},
 	{
@@ -16192,7 +16336,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Text.\n *\n * @returns B.\n */\n"
 		}
 	},
 	{
@@ -16320,7 +16465,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * Text.\n *\n * @example\n *\n * A.\n *\n * @example\n *\n * B.\n */\n"
 		}
 	},
 	{
@@ -16370,7 +16516,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * `code`\n */\n"
 		}
 	},
 	{
@@ -16421,7 +16568,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ``\n */\n"
 		}
 	},
 	{
@@ -16481,7 +16629,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * `x\n */\n"
 		}
 	},
 	{
@@ -16531,7 +16680,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ` `\n */\n"
 		}
 	},
 	{
@@ -16585,7 +16735,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ```ts\n * code\n * ```\n *\n */\n"
 		}
 	},
 	{
@@ -16655,7 +16806,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * text ```ts\n */\n"
 		}
 	},
 	{
@@ -16790,7 +16942,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ```ts`x\n * code\n * ```\n */\n"
 		}
 	},
 	{
@@ -16870,7 +17023,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ```ts\n * code\n */\n"
 		}
 	},
 	{
@@ -16922,7 +17076,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ```\n */\n"
 		}
 	},
 	{
@@ -16983,7 +17138,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ```ts\n * code\n * ```\n *\n */\n"
 		}
 	},
 	{
@@ -17067,7 +17223,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ```ts\n * code\n * ```\n *\n * trailing\n */\n"
 		}
 	},
 	{
@@ -17121,7 +17278,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ```ts\n * code\n * ```\n *\n */\n"
 		}
 	},
 	{
@@ -17176,7 +17334,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ```ts\n * code\n * `` not yet\n * ```\n *\n */\n"
 		}
 	},
 	{
@@ -17230,7 +17389,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * ```ts\n *\n * ```\n *\n */\n"
 		}
 	},
 	{
@@ -17306,7 +17466,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <b>bold</b>\n */\n"
 		}
 	},
 	{
@@ -17496,7 +17657,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <b>bold</b> <i>no</i>\n */\n"
 		}
 	},
 	{
@@ -17630,7 +17792,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <b>bold</b> <i>no</i>\n */\n"
 		}
 	},
 	{
@@ -17740,7 +17903,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a href=\"x\">link</a>\n */\n"
 		}
 	},
 	{
@@ -17876,7 +18040,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a href=\"x\">link</a>\n */\n"
 		}
 	},
 	{
@@ -17955,7 +18120,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * < b>\n */\n"
 		}
 	},
 	{
@@ -18025,7 +18191,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <>\n */\n"
 		}
 	},
 	{
@@ -18104,7 +18271,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <1b>\n */\n"
 		}
 	},
 	{
@@ -18183,7 +18351,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <b.c>\n */\n"
 		}
 	},
 	{
@@ -18262,7 +18431,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a href>\n */\n"
 		}
 	},
 	{
@@ -18341,7 +18511,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a href=x>\n */\n"
 		}
 	},
 	{
@@ -18420,7 +18591,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a href=\"x>\n */\n"
 		}
 	},
 	{
@@ -18499,7 +18671,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a href='x'y>\n */\n"
 		}
 	},
 	{
@@ -18582,7 +18755,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a href = 'x' >\n */\n"
 		}
 	},
 	{
@@ -18632,7 +18806,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <br/>\n */\n"
 		}
 	},
 	{
@@ -18711,7 +18886,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <br/ >\n */\n"
 		}
 	},
 	{
@@ -18803,7 +18979,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a b='c' d=\"e\"/>\n */\n"
 		}
 	},
 	{
@@ -18864,7 +19041,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * <a b='c'\n */\n"
 		}
 	},
 	{
@@ -18914,7 +19092,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * </a>\n */\n"
 		}
 	},
 	{
@@ -18993,7 +19172,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * </ a>\n */\n"
 		}
 	},
 	{
@@ -19072,7 +19252,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * </a b>\n */\n"
 		}
 	},
 	{
@@ -19151,7 +19332,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * </>\n */\n"
 		}
 	},
 	{
@@ -19208,7 +19390,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link}\n */\n"
 		}
 	},
 	{
@@ -19269,7 +19452,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link}\n */\n"
 		}
 	},
 	{
@@ -19334,7 +19518,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link http://}\n */\n"
 		}
 	},
 	{
@@ -19392,7 +19577,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link http://x.dev}\n */\n"
 		}
 	},
 	{
@@ -19466,7 +19652,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link https://x.dev | text}\n */\n"
 		}
 	},
 	{
@@ -19531,7 +19718,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link https://x.dev y}\n */\n"
 		}
 	},
 	{
@@ -19596,7 +19784,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link //x.dev}\n */\n"
 		}
 	},
 	{
@@ -19661,7 +19850,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link 1http://x}\n */\n"
 		}
 	},
 	{
@@ -19726,7 +19916,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link ftp:x}\n */\n"
 		}
 	},
 	{
@@ -19791,7 +19982,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link a.b-c+d:x}\n */\n"
 		}
 	},
 	{
@@ -19856,7 +20048,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link a|b|c}\n */\n"
 		}
 	},
 	{
@@ -19962,7 +20155,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link a | b {c}\n */\n"
 		}
 	},
 	{
@@ -20043,7 +20237,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link a}\n */\n"
 		}
 	},
 	{
@@ -20128,7 +20323,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link a}\n */\n"
 		}
 	},
 	{
@@ -20218,7 +20414,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link a | b}\n */\n"
 		}
 	},
 	{
@@ -20283,7 +20480,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo bar}\n */\n"
 		}
 	},
 	{
@@ -20374,7 +20572,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo.bar}\n */\n"
 		}
 	},
 	{
@@ -20439,7 +20638,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo.}\n */\n"
 		}
 	},
 	{
@@ -20504,7 +20704,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link .foo}\n */\n"
 		}
 	},
 	{
@@ -20569,7 +20770,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link :foo}\n */\n"
 		}
 	},
 	{
@@ -20642,7 +20844,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link pkg}\n */\n"
 		}
 	},
 	{
@@ -20707,7 +20910,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link @scope/pkg}\n */\n"
 		}
 	},
 	{
@@ -20772,7 +20976,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link ./path}\n */\n"
 		}
 	},
 	{
@@ -20853,7 +21058,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link pkg#Foo}\n */\n"
 		}
 	},
 	{
@@ -20934,7 +21140,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link @scope/pkg#Foo}\n */\n"
 		}
 	},
 	{
@@ -21019,7 +21226,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link @scope/pkg/path/to#Foo}\n */\n"
 		}
 	},
 	{
@@ -21104,7 +21312,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link pkg/path#Foo}\n */\n"
 		}
 	},
 	{
@@ -21169,7 +21378,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link #Foo}\n */\n"
 		}
 	},
 	{
@@ -21250,7 +21460,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link ./path#Foo}\n */\n"
 		}
 	},
 	{
@@ -21315,7 +21526,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link /path#Foo}\n */\n"
 		}
 	},
 	{
@@ -21380,7 +21592,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link pkg//path#Foo}\n */\n"
 		}
 	},
 	{
@@ -21445,7 +21658,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link pkg/path/#Foo}\n */\n"
 		}
 	},
 	{
@@ -21510,7 +21724,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link @scope#Foo}\n */\n"
 		}
 	},
 	{
@@ -21575,7 +21790,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link @#Foo}\n */\n"
 		}
 	},
 	{
@@ -21640,7 +21856,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link pk!g#Foo}\n */\n"
 		}
 	},
 	{
@@ -21711,7 +21928,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link pkg#}\n */\n"
 		}
 	},
 	{
@@ -21778,7 +21996,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link pkg#}\n */\n"
 		}
 	},
 	{
@@ -21872,7 +22091,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:constructor)}\n */\n"
 		}
 	},
 	{
@@ -21966,7 +22186,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:static)}\n */\n"
 		}
 	},
 	{
@@ -22078,7 +22299,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo.(bar:instance)}\n */\n"
 		}
 	},
 	{
@@ -22143,7 +22365,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo)}\n */\n"
 		}
 	},
 	{
@@ -22214,7 +22437,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:)}\n */\n"
 		}
 	},
 	{
@@ -22285,7 +22509,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo:static}\n */\n"
 		}
 	},
 	{
@@ -22350,7 +22575,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:static}\n */\n"
 		}
 	},
 	{
@@ -22444,7 +22670,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:LABEL)}\n */\n"
 		}
 	},
 	{
@@ -22509,7 +22736,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:L)}\n */\n"
 		}
 	},
 	{
@@ -22574,7 +22802,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:Label)}\n */\n"
 		}
 	},
 	{
@@ -22668,7 +22897,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:_A1)}\n */\n"
 		}
 	},
 	{
@@ -22762,7 +22992,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:2)}\n */\n"
 		}
 	},
 	{
@@ -22827,7 +23058,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:02)}\n */\n"
 		}
 	},
 	{
@@ -22892,7 +23124,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:2a)}\n */\n"
 		}
 	},
 	{
@@ -22957,7 +23190,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:staticx)}\n */\n"
 		}
 	},
 	{
@@ -23022,7 +23256,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:x1)}\n */\n"
 		}
 	},
 	{
@@ -23136,7 +23371,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link [Symbol.iterator]}\n */\n"
 		}
 	},
 	{
@@ -23268,7 +23504,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo.[Symbol.iterator]}\n */\n"
 		}
 	},
 	{
@@ -23333,7 +23570,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link [Symbol.iterator}\n */\n"
 		}
 	},
 	{
@@ -23404,7 +23642,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link [ ]}\n */\n"
 		}
 	},
 	{
@@ -23503,7 +23742,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo.\"bar baz\"}\n */\n"
 		}
 	},
 	{
@@ -23568,7 +23808,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link \"\"}\n */\n"
 		}
 	},
 	{
@@ -23633,7 +23874,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link \"bar}\n */\n"
 		}
 	},
 	{
@@ -23698,7 +23940,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link static}\n */\n"
 		}
 	},
 	{
@@ -23763,7 +24006,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo.class}\n */\n"
 		}
 	},
 	{
@@ -23828,7 +24072,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link $a.b$}\n */\n"
 		}
 	},
 	{
@@ -23893,7 +24138,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo.1a}\n */\n"
 		}
 	},
 	{
@@ -23992,7 +24238,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo.bar}\n */\n"
 		}
 	},
 	{
@@ -24102,7 +24349,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link (Foo:static)}\n */\n"
 		}
 	},
 	{
@@ -24222,7 +24470,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * {@link Foo.(bar:1) | text}\n */\n"
 		}
 	},
 	{
@@ -24264,7 +24513,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * One line.\n */\n"
 		}
 	},
 	{
@@ -24315,7 +24565,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * One line with a tag\n *\n * @beta\n */\n"
 		}
 	},
 	{
@@ -24385,7 +24636,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * no star\n *\n * @beta\n */\n"
 		}
 	},
 	{
@@ -24495,7 +24747,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * CRLF {@link Foo}.\n *\n * @beta\n */\n"
 		}
 	},
 	{
@@ -24557,7 +24810,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * after blanks\n */\n"
 		}
 	},
 	{
@@ -24713,7 +24967,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * a\n *\n * b `x\n *\n * y`\n */\n"
 		}
 	},
 	{
@@ -24774,7 +25029,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * x\n *  y\n */\n"
 		}
 	},
 	{
@@ -24835,7 +25091,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * first\n * second\n */\n"
 		}
 	},
 	{
@@ -24909,7 +25166,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * café été {@link Café}\n */\n"
 		}
 	},
 	{
@@ -24960,7 +25218,8 @@
 						]
 					}
 				]
-			}
+			},
+			"emitted": "/**\n * tab separated\n *\n * @beta\n */\n"
 		}
 	}
 ]

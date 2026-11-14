@@ -10,12 +10,17 @@ use tsdocrs::{
 
 /// Text that's usually a comment, with TSDoc's punctuation over-represented.
 fn text(tc: &TestCase) -> String {
-    let body = tc.draw(gs::vecs(gs::one_of(vec![
-        gs::text().max_size(4).boxed(),
-        gs::sampled_from(vec!["@", "{", "}", "<", ">", "`", "\\", "\n", " * ", "*/", "\"", "#", ".", "(", ":", "|"])
+    let body = tc.draw(
+        gs::vecs(gs::one_of(vec![
+            gs::text().max_size(4).boxed(),
+            gs::sampled_from(vec![
+                "@", "{", "}", "<", ">", "`", "\\", "\n", " * ", "*/", "\"", "#", ".", "(", ":", "|",
+            ])
             .map(str::to_owned)
             .boxed(),
-    ])).max_size(30));
+        ]))
+        .max_size(30),
+    );
     let body = body.concat();
     if tc.draw(gs::booleans()) { format!("/**{body}*/") } else { body }
 }

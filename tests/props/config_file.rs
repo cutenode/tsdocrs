@@ -132,9 +132,18 @@ fn tsdoc_json_errors_say_why(tc: TestCase) {
         (vec![("tsdoc.json", "{".into())], Id::ConfigInvalidJson),
         (vec![("tsdoc.json", "{}".into())], Id::ConfigFileUnsupportedSchema),
         (vec![("tsdoc.json", file(json!({ "$schema": schema, "x": 1 })))], Id::ConfigFileSchemaError),
-        (vec![("tsdoc.json", file(json!({ "$schema": schema, "supportedHtmlElements": ["b c"] })))], Id::ConfigFileSchemaError),
-        (vec![("tsdoc.json", file(json!({ "$schema": schema, "supportedHtmlElements": [""] })))], Id::ConfigFileSchemaError),
-        (vec![("tsdoc.json", file(json!({ "$schema": schema, "tagDefinitions": [tag("custom")] })))], Id::ConfigFileInvalidTagName),
+        (
+            vec![("tsdoc.json", file(json!({ "$schema": schema, "supportedHtmlElements": ["b c"] })))],
+            Id::ConfigFileSchemaError,
+        ),
+        (
+            vec![("tsdoc.json", file(json!({ "$schema": schema, "supportedHtmlElements": [""] })))],
+            Id::ConfigFileSchemaError,
+        ),
+        (
+            vec![("tsdoc.json", file(json!({ "$schema": schema, "tagDefinitions": [tag("custom")] })))],
+            Id::ConfigFileInvalidTagName,
+        ),
         (
             vec![("tsdoc.json", file(json!({ "$schema": schema, "tagDefinitions": [tag("@a"), tag("@A")] })))],
             Id::ConfigFileDuplicateTagName,
@@ -142,7 +151,10 @@ fn tsdoc_json_errors_say_why(tc: TestCase) {
         (
             vec![
                 ("base.json", file(json!({ "$schema": schema, "tagDefinitions": [tag("@a")] }))),
-                ("tsdoc.json", file(json!({ "$schema": schema, "extends": ["./base.json"], "tagDefinitions": [tag("@a")] }))),
+                (
+                    "tsdoc.json",
+                    file(json!({ "$schema": schema, "extends": ["./base.json"], "tagDefinitions": [tag("@a")] })),
+                ),
             ],
             Id::ConfigFileDuplicateTagName,
         ),
@@ -211,6 +223,9 @@ fn the_nearest_project_folder_has_the_tsdoc_json(tc: TestCase) {
     fs::create_dir_all(&folder).unwrap();
     let (found, looked) = config_file::find(&folder);
     let config = root.join(format!("{project}tsdoc.json"));
-    assert_eq!(found.map(|found| fs::canonicalize(found).unwrap()), has_config.then(|| fs::canonicalize(&config).unwrap()));
+    assert_eq!(
+        found.map(|found| fs::canonicalize(found).unwrap()),
+        has_config.then(|| fs::canonicalize(&config).unwrap())
+    );
     assert_eq!(looked.last().map(|last| last.file_name().unwrap().to_owned()), Some("tsdoc.json".into()));
 }

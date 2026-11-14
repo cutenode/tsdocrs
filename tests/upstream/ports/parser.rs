@@ -36,7 +36,8 @@ inventory::submit! { Port { file: PARSING_BASICS, template: "03 Jumbled order", 
 
 fn every_message_id_is_known(_: &Test) -> Result<(), String> {
     let configuration = TSDocConfiguration::new();
-    let missing: Vec<_> = TSDocMessageId::ALL.iter().filter(|id| !configuration.is_known_message_id(id.as_str())).collect();
+    let missing: Vec<_> =
+        TSDocMessageId::ALL.iter().filter(|id| !configuration.is_known_message_id(id.as_str())).collect();
     check(missing.is_empty(), &format!("no missing ids, not {missing:?}"))
 }
 
@@ -128,7 +129,8 @@ fn degenerate_manual_nodes(test: &Test) -> Result<(), String> {
 inventory::submit! { Port { file: "tsdoc/src/__tests__/ParagraphSplitter.test.ts", template: "04 Degenerate manually constructed nodes", run: degenerate_manual_nodes } }
 
 fn render_html_tag(test: &Test) -> Result<(), String> {
-    let attribute = DocHtmlAttribute { name: "src".into(), value: "\"http://example.com\"".into(), ..Default::default() };
+    let attribute =
+        DocHtmlAttribute { name: "src".into(), value: "\"http://example.com\"".into(), ..Default::default() };
     let tag = DocHtmlStartTag { name: "img".into(), html_attributes: vec![attribute], ..Default::default() };
     compare(expected(test, 0)?, &tag.emit_as_html().into())
 }
@@ -140,8 +142,11 @@ fn render_declaration_reference(test: &Test) -> Result<(), String> {
         selector: Some(DocMemberSelector::new("class")),
         ..Default::default()
     };
-    let reference =
-        DocDeclarationReference { package_name: Some("my-package".into()), member_references: vec![member], ..Default::default() };
+    let reference = DocDeclarationReference {
+        package_name: Some("my-package".into()),
+        member_references: vec![member],
+        ..Default::default()
+    };
     compare(expected(test, 0)?, &reference.emit_as_tsdoc().into())
 }
 

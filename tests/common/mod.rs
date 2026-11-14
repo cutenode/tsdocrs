@@ -1,6 +1,11 @@
 //! What tools/oracle/oracle.mjs reports for a comment, made from tsdocrs's parse of it, so the two
-//! compare as JSON: the lines, the messages with UTF-8 offsets, and the tree as TestHelpers
-//! snapshots it, unescaped.
+//! compare as JSON: the lines, the messages with UTF-8 offsets, the tree as TestHelpers snapshots
+//! it, unescaped, and the comment emitted again as TSDoc.
+
+// Each test target uses only some of this.
+#![allow(dead_code)]
+
+pub mod generate;
 
 use std::fs;
 
@@ -36,6 +41,7 @@ pub fn report(comment: &str, config: Option<&Value>) -> Value {
                 "end": message.text_range.end,
             })).collect::<Vec<_>>(),
             "nodes": snapshot(&context, NodeRef::Comment(&context.doc_comment)),
+            "emitted": context.doc_comment.emit_as_tsdoc(),
         }),
         Err(error) => json!({ "throws": error.message }),
     }

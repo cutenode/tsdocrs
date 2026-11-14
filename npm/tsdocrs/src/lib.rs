@@ -5,9 +5,7 @@
 use serde::Serialize as _;
 use serde_json::{Map, Value, json};
 use tsdocrs::{
-    ParseError, ParserContext, TSDocConfigFile, TSDocConfiguration, TSDocParser,
-    nodes::NodeRef,
-    parser::TextRange,
+    ParseError, ParserContext, TSDocConfigFile, TSDocConfiguration, TSDocParser, nodes::NodeRef, parser::TextRange,
 };
 use wasm_bindgen::prelude::*;
 

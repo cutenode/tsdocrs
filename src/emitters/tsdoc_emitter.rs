@@ -2,9 +2,7 @@
 //! between paragraphs and blocks, and spacing collapsed.
 
 use crate::{
-    nodes::{
-        DocComment, DocDeclarationReference, DocHtmlEndTag, DocHtmlStartTag, DocNode, InlineTagBase, NodeRef,
-    },
+    nodes::{DocComment, DocDeclarationReference, DocHtmlEndTag, DocHtmlStartTag, DocNode, InlineTagBase, NodeRef},
     transforms::trim_spaces_in_paragraph,
 };
 
@@ -115,7 +113,10 @@ impl TSDocEmitter {
                 if reference.package_name.is_some() || reference.import_path.is_some() {
                     self.write_content("#");
                 }
-                reference.member_references.iter().for_each(|member| self.render_node(NodeRef::MemberReference(member)));
+                reference
+                    .member_references
+                    .iter()
+                    .for_each(|member| self.render_node(NodeRef::MemberReference(member)));
             }
             NodeRef::ErrorText(error) => self.write_content(&error.text),
             NodeRef::EscapedText(escaped) => self.write_content(&escaped.encoded_text),

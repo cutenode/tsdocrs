@@ -29,8 +29,7 @@ pub mod transforms;
 pub use self::{
     configuration::{
         Standardization, SyntaxKindJson, TSDocConfigFile, TSDocConfiguration, TSDocTagDefinition, TSDocTagSyntaxKind,
-        TSDocValidationConfiguration, TagDefinitionJson,
-        standard_tags,
+        TSDocValidationConfiguration, TagDefinitionJson, standard_tags,
     },
     parser::{ParseError, ParsedTag, ParserContext, ParserMessage, TSDocMessageId, TSDocParser},
 };

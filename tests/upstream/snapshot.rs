@@ -144,7 +144,8 @@ pub fn node_snapshot(context: Option<&ParserContext>, node: NodeRef) -> Value {
     }
     let children = node.child_nodes();
     if !children.is_empty() {
-        entries.push(("nodes", Value::Array(children.into_iter().map(|child| node_snapshot(context, child)).collect())));
+        entries
+            .push(("nodes", Value::Array(children.into_iter().map(|child| node_snapshot(context, child)).collect())));
     }
     Value::Object(entries)
 }
@@ -165,7 +166,11 @@ pub fn coverage_gaps(context: &ParserContext, root: NodeRef) -> Result<Vec<Strin
             let association = ("Excerpt", excerpt.content);
             for slot in &mut covered[excerpt.content.start_index..excerpt.content.end_index] {
                 if let Some(existing) = *slot {
-                    return Err(format!("Overlapping content encountered between {} and {}", format(existing), format(association)));
+                    return Err(format!(
+                        "Overlapping content encountered between {} and {}",
+                        format(existing),
+                        format(association)
+                    ));
                 }
                 *slot = Some(association);
             }

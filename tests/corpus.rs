@@ -19,7 +19,9 @@ fn every_comment_parses_as_microsoft_tsdoc_parses_it() {
     let entries: Vec<Entry> = serde_json::from_str(include_str!("fixtures/corpus.json")).unwrap();
     let wrong: Vec<String> = entries
         .iter()
-        .filter(|entry| common::report(&entry.comment, entry.config.as_ref()) != common::comparable(entry.expected.clone()))
+        .filter(|entry| {
+            common::report(&entry.comment, entry.config.as_ref()) != common::comparable(entry.expected.clone())
+        })
         .map(|entry| format!("{:?}", entry.comment))
         .collect();
     assert!(wrong.is_empty(), "{} of {} differ:\n{}", wrong.len(), entries.len(), wrong.join("\n"));

@@ -3,8 +3,8 @@
 //! error text and message, and the text after it reads the same.
 
 use super::{
-    ParseError, ParsedTag, ParserContext, ParserMessage, TSDocMessageId as Id, TextRange, Token, TokenKind, TokenSequence,
-    json_string, string_checks, token_reader::TokenReader, tokenizer,
+    ParseError, ParsedTag, ParserContext, ParserMessage, TSDocMessageId as Id, TextRange, Token, TokenKind,
+    TokenSequence, json_string, string_checks, token_reader::TokenReader, tokenizer,
 };
 use crate::{
     TSDocConfiguration, TSDocTagDefinition, TSDocTagSyntaxKind,
@@ -14,8 +14,8 @@ use crate::{
         DocExcerpt, DocFencedCode, DocHtmlAttribute, DocHtmlEndTag, DocHtmlStartTag, DocInheritDocTag, DocInlineTag,
         DocLinkTag, DocMemberIdentifier, DocMemberReference, DocMemberSelector, DocMemberSymbol, DocNode,
         DocParamBlock, DocPlainText, DocSection, DocSoftBreak, EscapeStyle, ExcerptKind as Kind, FencedCodeExcerpts,
-        HtmlAttributeExcerpts, HtmlTagExcerpts, InlineTagBase, LinkTagExcerpts, MemberReferenceExcerpts,
-        NodeRef, ParamBlockExcerpts, paragraph_allows,
+        HtmlAttributeExcerpts, HtmlTagExcerpts, InlineTagBase, LinkTagExcerpts, MemberReferenceExcerpts, NodeRef,
+        ParamBlockExcerpts, paragraph_allows,
     },
 };
 
@@ -116,8 +116,13 @@ impl<'a> NodeParser<'a> {
                         DocNode::InheritDocTag(_) => {
                             let tag_end = reader.create_marker() - 1;
                             let text = "A doc comment cannot have more than one @inheritDoc tag";
-                            let error =
-                                self.backtrack_and_create_error_range(&mut reader, marker, tag_end, Id::ExtraInheritDocTag, text)?;
+                            let error = self.backtrack_and_create_error_range(
+                                &mut reader,
+                                marker,
+                                tag_end,
+                                Id::ExtraInheritDocTag,
+                                text,
+                            )?;
                             self.push_node(error);
                         }
                         node => self.push_node(node),
@@ -140,7 +145,8 @@ impl<'a> NodeParser<'a> {
                 }
                 TokenKind::GreaterThan => {
                     self.push_accumulated_plain_text(&mut reader);
-                    let text = "The \">\" character should be escaped using a backslash to avoid confusion with an HTML tag";
+                    let text =
+                        "The \">\" character should be escaped using a backslash to avoid confusion with an HTML tag";
                     let error = self.create_error(&mut reader, Id::EscapeGreaterThan, text.into())?;
                     self.push_node(error);
                 }
@@ -227,7 +233,8 @@ impl<'a> NodeParser<'a> {
                 );
                 self.log_sequence(Id::TagShouldNotHaveBraces, text, sequence);
             } else {
-                let text = format!("The TSDoc tag \"{tag_name}\" is an inline tag; it must be enclosed in \"{{ }}\" braces");
+                let text =
+                    format!("The TSDoc tag \"{tag_name}\" is an inline tag; it must be enclosed in \"{{ }}\" braces");
                 self.log_sequence(Id::InlineTagMissingBraces, text, sequence);
             }
         } else if self.configuration.validation.report_unsupported_tags
@@ -417,7 +424,12 @@ impl<'a> NodeParser<'a> {
         )
     }
 
-    fn parse_param_block(&mut self, reader: &mut TokenReader, tag: DocBlockTag, tag_name: &str) -> Result<DocParamBlock> {
+    fn parse_param_block(
+        &mut self,
+        reader: &mut TokenReader,
+        tag: DocBlockTag,
+        tag_name: &str,
+    ) -> Result<DocParamBlock> {
         let start_marker = reader.create_marker();
         let spacing_before_parameter_name = self.try_read_spacing_and_newlines(reader)?;
         let unsupported_jsdoc_type_before_parameter_name = self.try_parse_unsupported_jsdoc_type(reader, tag_name)?;
@@ -596,15 +608,27 @@ impl<'a> NodeParser<'a> {
                         let text = "A backslash can only be used to escape a punctuation character";
                         let failure = self.failure_for_token(reader, Id::UnnecessaryBackslash, text.into(), None);
                         let prefix = "Error reading inline TSDoc tag: ";
-                        return self
-                            .backtrack_and_create_error_range_for_failure(reader, marker, at_sign_marker, prefix, failure);
+                        return self.backtrack_and_create_error_range_for_failure(
+                            reader,
+                            marker,
+                            at_sign_marker,
+                            prefix,
+                            failure,
+                        );
                     }
                     reader.read_token()?;
                 }
                 TokenKind::LeftCurlyBracket => {
-                    let text = "The \"{\" character must be escaped with a backslash when used inside a TSDoc inline tag";
+                    let text =
+                        "The \"{\" character must be escaped with a backslash when used inside a TSDoc inline tag";
                     let failure = self.failure_for_token(reader, Id::InlineTagUnescapedBrace, text.into(), None);
-                    return self.backtrack_and_create_error_range_for_failure(reader, marker, at_sign_marker, "", failure);
+                    return self.backtrack_and_create_error_range_for_failure(
+                        reader,
+                        marker,
+                        at_sign_marker,
+                        "",
+                        failure,
+                    );
                 }
                 TokenKind::RightCurlyBracket => break,
                 _ => {
@@ -731,7 +755,8 @@ impl<'a> NodeParser<'a> {
                     TokenKind::Pipe | TokenKind::LeftCurlyBracket => {
                         let bad = embedded.read_token()?.text(self.buffer).to_owned();
                         let sequence = embedded.extract_accumulated_sequence();
-                        let text = format!("The \"{bad}\" character may not be used in the link text without escaping it");
+                        let text =
+                            format!("The \"{bad}\" character may not be used in the link text without escaping it");
                         self.log_sequence(Id::LinkTagUnescapedText, text, sequence);
                         return Ok(self.inline_tag(parts).into());
                     }
@@ -758,7 +783,11 @@ impl<'a> NodeParser<'a> {
         } else if embedded.peek_token_kind() != TokenKind::EndOfInput {
             embedded.read_token()?;
             let sequence = embedded.extract_accumulated_sequence();
-            self.log_sequence(Id::LinkTagDestinationSyntax, "Unexpected character after link destination".into(), sequence);
+            self.log_sequence(
+                Id::LinkTagDestinationSyntax,
+                "Unexpected character after link destination".into(),
+                sequence,
+            );
             return Ok(self.inline_tag(parts).into());
         }
         excerpts.url_destination = excerpt(Kind::LinkTag_UrlDestination, url_destination);
@@ -880,7 +909,8 @@ impl<'a> NodeParser<'a> {
             }
             if let Some(sequence) = reader.try_extract_accumulated_sequence() {
                 let path = self.text(sequence);
-                if let Some(explanation) = string_checks::explain_if_invalid_import_path(&path, package_name.is_some()) {
+                if let Some(explanation) = string_checks::explain_if_invalid_import_path(&path, package_name.is_some())
+                {
                     self.log_sequence(Id::ReferenceMalformedImportPath, explanation.to_string(), sequence);
                     return Ok(None);
                 }
@@ -1197,7 +1227,12 @@ impl<'a> NodeParser<'a> {
                 }
                 TokenKind::EndOfInput | TokenKind::Newline => {
                     let text = "The HTML string is missing its closing quote";
-                    return Ok(Err(self.failure_for_token(reader, Id::HtmlStringMissingQuote, text.into(), Some(marker))));
+                    return Ok(Err(self.failure_for_token(
+                        reader,
+                        Id::HtmlStringMissingQuote,
+                        text.into(),
+                        Some(marker),
+                    )));
                 }
                 _ => {
                     reader.read_token()?;
@@ -1267,7 +1302,8 @@ impl<'a> NodeParser<'a> {
         if self.configuration.validation.report_unsupported_html_elements
             && !self.configuration.is_html_element_supported(&name)
         {
-            let text = format!("The HTML element name {} is not defined by your TSDoc configuration", json_string(&name));
+            let text =
+                format!("The HTML element name {} is not defined by your TSDoc configuration", json_string(&name));
             return Ok(Err(self.failure_for_token(reader, Id::UnsupportedHtmlElementName, text, Some(marker))));
         }
         Ok(Ok(sequence))
@@ -1306,13 +1342,29 @@ impl<'a> NodeParser<'a> {
                     let text = "The language specifier cannot contain backtick characters";
                     let failure = self.failure_for_token(reader, Id::CodeFenceSpecifierSyntax, text.into(), None);
                     let (prefix, end) = ("Error parsing code fence: ", end_of_opening_delimiter_marker);
-                    return self.backtrack_and_create_error_range_for_failure(reader, start_marker, end, prefix, failure);
+                    return self.backtrack_and_create_error_range_for_failure(
+                        reader,
+                        start_marker,
+                        end,
+                        prefix,
+                        failure,
+                    );
                 }
                 TokenKind::EndOfInput => {
-                    let failure =
-                        self.failure_for_token(reader, Id::CodeFenceMissingDelimiter, "Missing closing delimiter".into(), None);
+                    let failure = self.failure_for_token(
+                        reader,
+                        Id::CodeFenceMissingDelimiter,
+                        "Missing closing delimiter".into(),
+                        None,
+                    );
                     let (prefix, end) = ("Error parsing code fence: ", end_of_opening_delimiter_marker);
-                    return self.backtrack_and_create_error_range_for_failure(reader, start_marker, end, prefix, failure);
+                    return self.backtrack_and_create_error_range_for_failure(
+                        reader,
+                        start_marker,
+                        end,
+                        prefix,
+                        failure,
+                    );
                 }
                 _ => {
                     start_of_padding_marker = None;
@@ -1327,10 +1379,20 @@ impl<'a> NodeParser<'a> {
         let (code_end_marker, closing_fence_start_marker, token_before_delimiter) = loop {
             match reader.peek_token_kind() {
                 TokenKind::EndOfInput => {
-                    let failure =
-                        self.failure_for_token(reader, Id::CodeFenceMissingDelimiter, "Missing closing delimiter".into(), None);
+                    let failure = self.failure_for_token(
+                        reader,
+                        Id::CodeFenceMissingDelimiter,
+                        "Missing closing delimiter".into(),
+                        None,
+                    );
                     let (prefix, end) = ("Error parsing code fence: ", end_of_opening_delimiter_marker);
-                    return self.backtrack_and_create_error_range_for_failure(reader, start_marker, end, prefix, failure);
+                    return self.backtrack_and_create_error_range_for_failure(
+                        reader,
+                        start_marker,
+                        end,
+                        prefix,
+                        failure,
+                    );
                 }
                 TokenKind::Newline => {
                     let mut token_before_delimiter = reader.read_token()?;
@@ -1461,14 +1523,25 @@ impl<'a> NodeParser<'a> {
     }
 
     /// Goes back to `marker` and reads the next token as an error text.
-    fn backtrack_and_create_error(&mut self, reader: &mut TokenReader, marker: usize, id: Id, message: &str) -> Result<DocNode> {
+    fn backtrack_and_create_error(
+        &mut self,
+        reader: &mut TokenReader,
+        marker: usize,
+        id: Id,
+        message: &str,
+    ) -> Result<DocNode> {
         reader.backtrack_to_marker(marker);
         self.create_error(reader, id, message.into())
     }
 
     /// Goes back to `start` and reads up to and with `inclusive_end`, and the token after it unless
     /// that's the end of input.
-    fn read_error_range(&mut self, reader: &mut TokenReader, start: usize, inclusive_end: usize) -> Result<TokenSequence> {
+    fn read_error_range(
+        &mut self,
+        reader: &mut TokenReader,
+        start: usize,
+        inclusive_end: usize,
+    ) -> Result<TokenSequence> {
         reader.backtrack_to_marker(start);
         while reader.create_marker() != inclusive_end {
             reader.read_token()?;

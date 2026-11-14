@@ -1,8 +1,9 @@
 // Runs @microsoft/tsdoc, the parser tsdocrs ports, as a test oracle: for each comment it gives the
-// node tree and messages tsdocrs's tests compare theirs with. `--serve` reads one JSON request a
-// line on stdin ({ comment, config }) and writes one result a line; `--record FILE` fills in each
-// entry of a corpus file. `config` is a tsdoc.json's keys, set up the way @microsoft/tsdoc-config
-// does. Offsets are UTF-8 bytes, as Rust's strings index.
+// node tree, the messages and the comment emitted again, which tsdocrs's tests compare theirs
+// with. `--serve` reads one JSON request a line on stdin ({ comment, config }) and writes one
+// result a line; `--record FILE` fills in each entry of a corpus file. `config` is a tsdoc.json's
+// keys, set up the way @microsoft/tsdoc-config does. Offsets are UTF-8 bytes, as Rust's strings
+// index.
 import { readFileSync, writeFileSync } from "node:fs";
 import {
 	DocErrorText,
@@ -76,6 +77,7 @@ export function run({ comment, config }) {
 				end: bytes(m.textRange.end),
 			})),
 			nodes: snapshot(context.docComment, context),
+			emitted: context.docComment.emitAsTsdoc(),
 		};
 	} catch (error) {
 		return { throws: error.message };
