@@ -14,9 +14,7 @@ pub(super) struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     pub(super) fn new(text: &'a str) -> Self {
-        let mut scanner = Scanner::new(text);
-        scanner.scan();
-        Self { scanner, errors: Vec::new() }
+        Self { scanner: Scanner::new(text), errors: Vec::new() }
     }
 
     pub(super) fn eof(&self) -> bool {
@@ -32,7 +30,7 @@ impl<'a> Parser<'a> {
         let mut navigation = None;
         if self.optional_token(Token::Exclamation) {
             source = Some(Source::Global(GlobalSource));
-        } else if self.scanner.rescan_module_source() == Token::ModuleSource {
+        } else if self.scanner.rescan_module_source() {
             source = Some(Source::Module(self.parse_module_source()));
             if self.optional_token(Token::Tilde) {
                 navigation = Some(Navigation::Locals);

@@ -211,7 +211,7 @@ fn classify(selector: &str) -> (SelectorKind, Option<String>) {
         return (SelectorKind::System, None);
     }
     if selector.chars().all(|c| c.is_ascii_lowercase()) {
-        let quoted = crate::parser::json_string(selector);
+        let quoted = string_checks::json_stringify(selector);
         return error(format!("The selector {quoted} is not a recognized TSDoc system selector name"));
     }
     error("Invalid syntax for selector".into())

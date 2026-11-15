@@ -66,17 +66,21 @@ impl<'t> TokenReader<'t> {
         if at >= self.end { TokenKind::EndOfInput } else { self.tokens[at].kind }
     }
 
-    /// Reads the next token, which mustn't be past the end or the end-of-input token.
-    pub fn read_token(&mut self) -> Result<Token, ParseError> {
+    /// Reads the next token. The parser reads a token only once it has peeked at it, or reads again
+    /// tokens it read before going back, so the next token is always there and never the end.
+    pub fn read_token(&mut self) -> Token {
+        debug_assert!(self.peek_token_kind() != TokenKind::EndOfInput, "the parser peeks before it reads");
+        self.current += 1;
+        self.tokens[self.current - 1]
+    }
+
+    /// Reads the next token, or fails as TSDoc does when there's none: where a member selector's
+    /// label is missing at the end of a `{@link}`, as in `{@link (Foo:}`, TSDoc reads past it.
+    pub fn try_read_token(&mut self) -> Result<Token, ParseError> {
         if self.current >= self.end {
             return Err(ParseError::new("Cannot read past end of stream"));
         }
-        let token = self.tokens[self.current];
-        if token.kind == TokenKind::EndOfInput {
-            return Err(ParseError::new("The EndOfInput token cannot be read"));
-        }
-        self.current += 1;
-        Ok(token)
+        Ok(self.read_token())
     }
 
     /// The kind of the token before the next, in all the tokens.
@@ -98,25 +102,4 @@ impl<'t> TokenReader<'t> {
         self.current = marker;
         self.accumulated_start = self.accumulated_start.min(marker);
     }
-}
-
-/// `s` as a JSON string, as `JSON.stringify` writes it.
-pub(crate) fn json_string(s: &str) -> String {
-    let mut out = String::with_capacity(s.len() + 2);
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\u{8}' => out.push_str("\\b"),
-            '\u{c}' => out.push_str("\\f"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out.push('"');
-    out
 }
