@@ -18,8 +18,9 @@ pub struct ParserMessage {
 }
 
 impl ParserMessage {
-    /// A message about `text_range` of `buffer`, the parsed text.
-    pub fn new(
+    /// A message about `text_range` of `buffer`, the parsed text. Only the parser makes them, with a
+    /// text and a range inside `buffer`.
+    pub(crate) fn new(
         buffer: &str,
         message_id: TSDocMessageId,
         unformatted_text: String,
@@ -38,13 +39,12 @@ impl std::fmt::Display for ParserMessage {
 }
 
 /// `message` after the line and column `range` starts at, unless it's the empty range at the start.
+/// TSDoc also leaves the prefix off when the range is outside the text, or fills in an empty
+/// message; neither happens to a message the parser makes.
 fn format_message_text(buffer: &str, message: &str, range: TextRange) -> String {
-    let message = if message.is_empty() { "An unknown error occurred" } else { message };
-    if range.pos != 0 || range.end != 0 {
-        let location = TextRange::location(buffer, range.pos as isize);
-        if location.line != 0 {
-            return format!("({},{}): {message}", location.line, location.column);
-        }
+    if range == TextRange::EMPTY {
+        return message.to_owned();
     }
-    message.to_owned()
+    let location = TextRange::location(buffer, range.pos as isize);
+    format!("({},{}): {message}", location.line, location.column)
 }

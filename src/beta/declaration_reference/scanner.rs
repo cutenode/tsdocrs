@@ -4,10 +4,11 @@
 //! so the tokens end in the same places.
 
 /// A token, as upstream's `Token` has them. Its keywords and decimal digits are text here, which
-/// the parser checks where it reads them.
+/// the parser checks where it reads them. It has no `None` or `ModuleSource`: the scanner reads its
+/// first token when it's made, and [`Scanner::rescan_module_source`] says whether a module source is
+/// next instead of making it the token.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Token {
-    None,
     Eof,
     OpenBrace,
     CloseBrace,
@@ -24,14 +25,12 @@ pub(super) enum Token {
     At,
     String,
     Text,
-    ModuleSource,
 }
 
 impl Token {
     /// How upstream names it in messages.
     pub(super) fn as_str(self) -> &'static str {
         match self {
-            Self::None => "<none>",
             Self::Eof => "<eof>",
             Self::OpenBrace => "{",
             Self::CloseBrace => "}",
@@ -48,7 +47,6 @@ impl Token {
             Self::At => "@",
             Self::String => "<string>",
             Self::Text => "<text>",
-            Self::ModuleSource => "<module source>",
         }
     }
 }
@@ -85,7 +83,7 @@ fn is_line_terminator(ch: u8) -> bool {
 /// Whether `text` is one string or text token, or nothing.
 pub(super) fn is_well_formed_component_string(text: &str) -> bool {
     let mut scanner = Scanner::new(text);
-    match scanner.scan() {
+    match scanner.token() {
         Token::String | Token::Text => scanner.scan() == Token::Eof,
         token => token == Token::Eof,
     }
@@ -95,7 +93,7 @@ pub(super) fn is_well_formed_component_string(text: &str) -> bool {
 pub(super) fn is_well_formed_module_source_string(text: &str) -> bool {
     let text = format!("{text}!");
     let mut scanner = Scanner::new(&text);
-    scanner.rescan_module_source() == Token::ModuleSource
+    scanner.rescan_module_source()
         && !scanner.string_is_unterminated
         && scanner.scan() == Token::Exclamation
         && scanner.scan() == Token::Eof
@@ -118,8 +116,11 @@ pub(super) struct Scanner<'a> {
 }
 
 impl<'a> Scanner<'a> {
+    /// The scanner at the first token of `text`.
     pub(super) fn new(text: &'a str) -> Self {
-        Self { text, token_pos: 0, pos: 0, token: Token::None, string_is_unterminated: false }
+        let mut scanner = Self { text, token_pos: 0, pos: 0, token: Token::Eof, string_is_unterminated: false };
+        scanner.scan();
+        scanner
     }
 
     pub(super) fn token(&self) -> Token {
@@ -161,22 +162,19 @@ impl<'a> Scanner<'a> {
     }
 
     /// Reads the token again, as a module source if there's a `!` after it: one string, or text
-    /// and punctuators.
-    pub(super) fn rescan_module_source(&mut self) -> Token {
-        if matches!(self.token, Token::ModuleSource | Token::Exclamation | Token::Eof) || self.eof() {
-            return self.token;
+    /// and punctuators. Whether it was one; if so, the token's text is the module source.
+    pub(super) fn rescan_module_source(&mut self) -> bool {
+        if matches!(self.token, Token::Exclamation | Token::Eof) || self.eof() {
+            return false;
         }
         let (pos, string_is_unterminated) = (self.pos, self.string_is_unterminated);
         self.pos = self.token_pos;
         self.string_is_unterminated = false;
         let mut scanned = Scanned::None;
         while let Some(ch) = self.byte(self.pos) {
+            // The token isn't a `!`, so a `!` here has something before it.
             if ch == b'!' {
-                if scanned == Scanned::None {
-                    break;
-                }
-                self.token = Token::ModuleSource;
-                return self.token;
+                return true;
             }
             self.pos += 1;
             if ch == b'"' {
@@ -199,7 +197,7 @@ impl<'a> Scanner<'a> {
         }
         self.pos = pos;
         self.string_is_unterminated = string_is_unterminated;
-        self.token
+        false
     }
 
     fn scan_string(&mut self) {
