@@ -1,5 +1,5 @@
 //! The parser: [`TSDocParser`] reads a comment into a [`ParserContext`], which has its lines,
-//! tokens, [`DocComment`](crate::nodes::DocComment) and messages.
+//! tokens, [`DocComment`] and messages.
 
 mod line_extractor;
 mod message_id;

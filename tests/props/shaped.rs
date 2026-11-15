@@ -121,18 +121,19 @@ fn the_configuration_keeps_what_it_is_told(tc: TestCase) {
     let tags = names.iter().map(|name| TSDocTagDefinition::new(name, kind, false).unwrap());
     configuration.add_tag_definitions(tags, supported).unwrap();
     for name in &names {
-        let found = configuration.try_get_tag_definition(&name.to_uppercase()).unwrap();
+        let found = configuration.try_get_tag_definition(&name.to_uppercase()).unwrap().clone();
         assert_eq!(found.tag_name, *name);
-        assert_eq!(configuration.is_tag_supported(found), supported == Some(true));
+        assert_eq!(configuration.is_tag_supported(&found), supported == Some(true));
         // The same definition again is fine; another of that name isn't.
         configuration.add_tag_definition(found.clone()).unwrap();
         let other = TSDocTagDefinition::new(&name.to_lowercase(), TSDocTagSyntaxKind::BlockTag, true).unwrap();
-        assert!(other == *found || configuration.add_tag_definition(other).is_err());
+        assert!(other == found || configuration.add_tag_definition(other).is_err());
     }
     let supported_names: Vec<&str> =
         configuration.supported_tag_definitions().map(|tag| tag.tag_name.as_str()).collect();
     assert_eq!(supported_names.len(), if supported == Some(true) { names.len() } else { 0 });
-    assert_eq!(configuration.validation.report_unsupported_tags, supported.is_some());
+    // Marking a tag supported or not turns on the report, as in TSDoc; with no tags nothing is marked.
+    assert_eq!(configuration.validation.report_unsupported_tags, supported.is_some() && !names.is_empty());
     assert!(configuration.set_support_for_tag("@nowhere", true).is_err());
     assert!(TSDocTagDefinition::new("nope", kind, false).is_err());
     let html = tc.draw(gs::vecs(gs::sampled_from(vec!["a", "b", "b"])).max_size(4));

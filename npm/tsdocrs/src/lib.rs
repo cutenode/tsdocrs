@@ -79,7 +79,7 @@ export interface ParseResult {
 }
 "#;
 
-/// Parses `text`, a `/** */` comment, with the tsdoc.json settings `configuration`. It throws
+/// Parses `text`, a TSDoc comment with its delimiters, with the tsdoc.json settings `configuration`. It throws
 /// where `@microsoft/tsdoc` throws, with the same message, and on settings that can't be used.
 #[wasm_bindgen(unchecked_return_type = "ParseResult")]
 pub fn parse(

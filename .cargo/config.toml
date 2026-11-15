@@ -4,7 +4,8 @@
 # the same cases every run and the numbers don't move. The report lists any uncovered lines, so a
 # failure on CI says where.
 #
-# The thresholds are placeholders until the parser lands. Then each goes just under what the suite
-# reaches, and moves up with it.
+# Each threshold sits just under what the Hegel properties alone reach (86.9% of lines, 87.6% of
+# functions, 84.4% of regions), which the whole suite clears (98.2%, 98.1%, 96.0%). Raise them as the
+# properties cover more.
 [alias]
-coverage = "llvm-cov nextest --no-fail-fast --show-missing-lines --fail-under-lines 90 --fail-under-functions 90 --fail-under-regions 90"
+coverage = "llvm-cov nextest --no-fail-fast --show-missing-lines --fail-under-lines 86 --fail-under-functions 87 --fail-under-regions 84"
