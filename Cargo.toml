@@ -42,6 +42,7 @@ automod = "1.0.17"
 hegeltest = { version = "=0.50.4", features = ["static-engine"] }
 inventory = "0.3.25"
 libtest-mimic = "0.8.2"
+regex = "1.13.1"
 serde_json = { version = "1.0.154", features = ["preserve_order"] }
 tempfile = "3.27.0"
 

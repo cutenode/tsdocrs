@@ -7,16 +7,17 @@ use tsdocrs::{
     TSDocConfiguration, TSDocMessageId, TSDocParser, TSDocTagDefinition, TSDocTagSyntaxKind,
     emitters::plain_text_emitter::has_any_text_content,
     nodes::{
-        DocBlockTag, DocCodeSpan, DocComment, DocFencedCode, DocHtmlEndTag, DocInlineTag, DocLinkTag,
-        DocMemberIdentifier, DocNode, DocParagraph, DocPlainText, DocSoftBreak, InlineTagBase, LinkTagExcerpts,
-        NodeRef,
+        DocBlockTag, DocCodeSpan, DocComment, DocExcerpt, DocFencedCode, DocHtmlAttribute, DocHtmlEndTag,
+        DocHtmlStartTag, DocInlineTag, DocLinkTag, DocMemberIdentifier, DocNode, DocParagraph, DocPlainText,
+        DocSoftBreak, InlineTagBase, LinkTagExcerpts, NodeRef,
     },
+    parser::TextRange,
     transforms::trim_spaces_in_paragraph,
 };
 
 use crate::common::{
     configuration,
-    generate::{comment, config},
+    generate::{BLOCKS, PIECES, comment, config},
 };
 
 /// Each node under `root`, parents first.
@@ -29,28 +30,146 @@ fn walk(root: NodeRef) -> Vec<NodeRef> {
     nodes
 }
 
-#[hegel::test(test_cases = 300)]
+/// `node`, owned.
+fn owned(node: NodeRef) -> DocNode {
+    match node {
+        NodeRef::Block(n) => n.clone().into(),
+        NodeRef::BlockTag(n) => n.clone().into(),
+        NodeRef::Excerpt(n) => (*n).into(),
+        NodeRef::FencedCode(n) => n.clone().into(),
+        NodeRef::CodeSpan(n) => n.clone().into(),
+        NodeRef::Comment(n) => n.clone().into(),
+        NodeRef::DeclarationReference(n) => n.clone().into(),
+        NodeRef::ErrorText(n) => n.clone().into(),
+        NodeRef::EscapedText(n) => n.clone().into(),
+        NodeRef::HtmlAttribute(n) => n.clone().into(),
+        NodeRef::HtmlEndTag(n) => n.clone().into(),
+        NodeRef::HtmlStartTag(n) => n.clone().into(),
+        NodeRef::InheritDocTag(n) => n.clone().into(),
+        NodeRef::InlineTag(n) => n.clone().into(),
+        NodeRef::LinkTag(n) => n.clone().into(),
+        NodeRef::MemberIdentifier(n) => n.clone().into(),
+        NodeRef::MemberReference(n) => n.clone().into(),
+        NodeRef::MemberSelector(n) => n.clone().into(),
+        NodeRef::MemberSymbol(n) => n.clone().into(),
+        NodeRef::Paragraph(n) => n.clone().into(),
+        NodeRef::ParamBlock(n) => n.clone().into(),
+        NodeRef::ParamCollection(n) => n.clone().into(),
+        NodeRef::PlainText(n) => n.clone().into(),
+        NodeRef::Section(n) => n.clone().into(),
+        NodeRef::SoftBreak(n) => n.clone().into(),
+    }
+}
+
+/// The excerpts under `node`, in tree order.
+fn excerpts<'a>(node: NodeRef<'a>) -> Vec<&'a DocExcerpt> {
+    walk(node).into_iter().filter_map(|node| if let NodeRef::Excerpt(e) = node { Some(e) } else { None }).collect()
+}
+
+/// A drawn comment parses into a tree that holds together: its excerpts cover each token at most
+/// once and run in source order within each block, each error text has its message, each tag read
+/// is its name's tokens, and its references and HTML tags read back the same once emitted. Where
+/// TSDoc throws, the error says why and keeps what it logged.
+#[hegel::test(test_cases = 400)]
 fn shaped_comments_hold_together(tc: TestCase) {
     let comment = comment(&tc);
     let Ok(configuration) = configuration(config(&tc).as_ref()) else { return };
-    let context = match TSDocParser::new(&configuration).parse_string(&comment) {
+    holds_together(&comment, &configuration);
+}
+
+/// Each construct the comments are drawn from holds together alone too, between a drawn opening
+/// and closing, so the rare ones are read every time.
+#[hegel::test(test_cases = 20)]
+fn each_construct_holds_together(tc: TestCase) {
+    let Ok(configuration) = configuration(config(&tc).as_ref()) else { return };
+    let line_start = tc.draw(gs::sampled_from(vec![" * ", " ", "\n * "]));
+    let closing = tc.draw(gs::sampled_from(vec![" */", "\n */", "*/"]));
+    let constructs = PIECES.iter().map(|piece| vec![*piece]).chain(BLOCKS.iter().map(|block| block.to_vec()));
+    for construct in constructs {
+        let comment = format!("/**{line_start}{}{closing}", construct.join("\n * "));
+        holds_together(&comment, &configuration);
+    }
+}
+
+/// Checks [`shaped_comments_hold_together`]'s invariants of `comment`.
+fn holds_together(comment: &str, configuration: &TSDocConfiguration) {
+    let parser = TSDocParser::new(configuration);
+    let context = match parser.parse_string(comment) {
         Ok(context) => context,
         Err(error) => {
             assert!(!error.message.is_empty() && error.to_string() == error.message);
+            assert!(error.log.iter().all(|m| configuration.is_known_message_id(m.message_id.as_str())));
             return;
         }
     };
     let root = NodeRef::Comment(&context.doc_comment);
-    // Excerpts cover each token at most once.
     let mut covered = vec![false; context.tokens.len()];
+    for excerpt in excerpts(root) {
+        assert!(!excerpt.excerpt_kind.as_str().is_empty());
+        for slot in &mut covered[excerpt.content.start_index..excerpt.content.end_index] {
+            assert!(!std::mem::replace(slot, true), "{comment:?}");
+        }
+        // An excerpt's range runs from its first token's start to its last token's end.
+        let range = excerpt.content.containing_text_range(&context.tokens);
+        match excerpt.content.tokens(&context.tokens) {
+            [] => assert_eq!(range, TextRange::EMPTY),
+            [first, .., last] | [first @ last] => assert_eq!((range.pos, range.end), (first.range.pos, last.range.end)),
+        }
+        assert_eq!(context.range_text(range).len(), range.len());
+        assert_eq!(range.is_empty(), range.pos == range.end);
+    }
     for node in walk(root) {
         assert!(!node.kind().as_str().is_empty());
-        if let NodeRef::Excerpt(excerpt) = node {
-            assert!(!excerpt.excerpt_kind.as_str().is_empty());
-            for slot in &mut covered[excerpt.content.start_index..excerpt.content.end_index] {
-                assert!(!std::mem::replace(slot, true), "{comment:?}");
+        match node {
+            // A block's excerpts run in source order: TSDoc only moves whole blocks and tags.
+            NodeRef::Section(_) | NodeRef::Block(_) | NodeRef::ParamBlock(_) => {
+                let starts: Vec<usize> = excerpts(node).iter().map(|e| e.content.start_index).collect();
+                assert!(starts.is_sorted(), "{comment:?}");
             }
+            // Each error text is logged, with its text's range.
+            NodeRef::ErrorText(error) => {
+                let range = error.text_excerpt.content.containing_text_range(&context.tokens);
+                let logged = context.log.iter().any(|m| {
+                    m.message_id == error.message_id
+                        && m.unformatted_text == error.error_message
+                        && m.text_range == range
+                });
+                assert!(logged, "{comment:?}: {}", error.error_message);
+                assert_eq!(error.text, context.text(error.text_excerpt.content));
+            }
+            // A reference reads back the same once emitted.
+            NodeRef::LinkTag(DocLinkTag { code_destination: Some(reference), .. }) => {
+                let emitted = reference.emit_as_tsdoc();
+                let again = parser.parse_string(&format!("/** {{@link {emitted}}} */")).unwrap();
+                let link = walk(NodeRef::Comment(&again.doc_comment)).into_iter().find_map(|node| match node {
+                    NodeRef::LinkTag(link) => link.code_destination.clone(),
+                    _ => None,
+                });
+                assert_eq!(link.map(|again| again.emit_as_tsdoc()), Some(emitted), "{comment:?}");
+            }
+            // An HTML tag reads back the same once emitted.
+            NodeRef::HtmlStartTag(tag) => {
+                let again = parser.parse_string(&format!("/** {} */", tag.emit_as_html())).unwrap();
+                let read = walk(NodeRef::Comment(&again.doc_comment)).into_iter().find_map(|node| match node {
+                    NodeRef::HtmlStartTag(read) => Some(read.clone()),
+                    _ => None,
+                });
+                let attributes = |tag: &DocHtmlStartTag| {
+                    tag.html_attributes.iter().map(|a| (a.name.clone(), a.value.clone())).collect::<Vec<_>>()
+                };
+                let read = read.expect("the emitted tag reads as one");
+                assert_eq!(
+                    (&read.name, attributes(&read), read.self_closing_tag),
+                    (&tag.name, attributes(tag), tag.self_closing_tag)
+                );
+            }
+            _ => {}
         }
+    }
+    // A node held as a `DocNode` is the same node, of the same kind.
+    for node in walk(root) {
+        let owned = owned(node);
+        assert_eq!((owned.kind(), owned.as_ref()), (node.kind(), node));
     }
     // Each tag read is its name's tokens.
     for tag in &context.tags {
@@ -60,6 +179,13 @@ fn shaped_comments_hold_together(tc: TestCase) {
         assert_eq!(message.to_string(), message.text);
         assert_eq!(TSDocMessageId::from_id(message.message_id.as_str()), Some(message.message_id));
         assert!(configuration.is_known_message_id(&message.message_id.to_string()));
+    }
+    // A parameter's block is the first with its name.
+    for params in [&context.doc_comment.params, &context.doc_comment.type_params] {
+        for block in &params.blocks {
+            let first = params.blocks.iter().find(|b| b.parameter_name == block.parameter_name);
+            assert_eq!(params.try_get_block_by_name(&block.parameter_name), first);
+        }
     }
     let tags = &context.doc_comment.modifier_tag_set;
     let modifiers = [
@@ -78,9 +204,13 @@ fn shaped_comments_hold_together(tc: TestCase) {
     for (name, is) in modifiers {
         assert_eq!(tags.has_tag_name(name), is, "{name}");
     }
-    // Text with more than spaces counts as text.
+    // Text with more than spaces counts as text, and so does code.
     let summary = NodeRef::Section(&context.doc_comment.summary_section);
-    let texty = walk(summary).iter().any(|node| matches!(node, NodeRef::PlainText(text) if text.text.trim() != ""));
+    let texty = walk(summary).iter().any(|node| match node {
+        NodeRef::PlainText(text) => text.text.trim() != "",
+        NodeRef::FencedCode(code) => code.code.trim() != "",
+        _ => false,
+    });
     assert!(!texty || has_any_text_content([summary], 1));
     // A trimmed paragraph's text has no runs of spaces and none at its ends.
     for node in walk(root) {
@@ -100,7 +230,7 @@ fn shaped_comments_hold_together(tc: TestCase) {
     let emitted = context.doc_comment.emit_as_tsdoc();
     if !emitted.is_empty() {
         assert!(emitted.starts_with("/**\n") && emitted.ends_with("*/\n"), "{emitted:?}");
-        let again = TSDocParser::new(&configuration).parse_string(&emitted);
+        let again = parser.parse_string(&emitted);
         assert!(again.is_ok_and(|again| again.log.iter().all(|m| m.message_id != TSDocMessageId::CommentNotFound)));
     }
 }
@@ -183,4 +313,11 @@ fn hand_built_nodes_emit(tc: TestCase) {
     assert!(emitted.contains("{@link https://example.com"), "{emitted}");
     assert!(emitted.contains(" * ```ts\n * let x = 1;\n * ```\n"), "{emitted}");
     assert_eq!(DocHtmlEndTag { name: "b".into(), ..Default::default() }.emit_as_html(), "</b>");
+    // A tag built without spacing gets a space before each attribute, and reads back the same.
+    let attribute =
+        |name: &str, value: &str| DocHtmlAttribute { name: name.into(), value: value.into(), ..Default::default() };
+    let attributes = vec![attribute("src", "\"x\""), attribute(word.split(' ').next().unwrap_or("a"), "'y'")];
+    let tag = DocHtmlStartTag { name: "img".into(), html_attributes: attributes, ..Default::default() };
+    let html = tag.emit_as_html();
+    assert!(html.starts_with("<img src=\"x\" ") && html.ends_with("'y'>"), "{html}");
 }

@@ -3,13 +3,15 @@
 
 use hegel::{TestCase, generators as gs};
 use tsdocrs::beta::declaration_reference::{
-    Component, ComponentNavigation, ComponentPath, ComponentReference, ComponentRoot, ComponentString,
-    DeclarationReference as Reference, GlobalSource, Meaning, ModuleSource, Navigation, Source, SymbolReference,
-    SymbolReferenceOptions,
+    Component, ComponentLike, ComponentNavigation, ComponentPath, ComponentReference, ComponentRoot, ComponentString,
+    DeclarationReference as Reference, ErrorKind, GlobalSource, Meaning, ModuleSource, Navigation, Source,
+    SymbolReference, SymbolReferenceOptions,
 };
 
 /// What the reference syntax gives meaning to, with a few ordinary and non-ASCII characters.
 const SYNTAX: &str = "ab1!.#~:,\"{}()[]@\\/ux0 \t\n\r\u{e9}\u{1f600}";
+
+const NAVIGATIONS: [Navigation; 3] = [Navigation::Exports, Navigation::Members, Navigation::Locals];
 
 const MEANINGS: [Meaning; 14] = [
     Meaning::Class,
@@ -147,15 +149,29 @@ fn component(tc: &TestCase, depth: usize, sources: Sources) -> Component {
     Component::String(ComponentString::new(&text(tc), false).unwrap())
 }
 
-fn symbol(tc: &TestCase, depth: usize, sources: Sources) -> SymbolReference {
+fn navigation(tc: &TestCase) -> Navigation {
+    tc.draw(gs::sampled_from(NAVIGATIONS.as_slice()))
+}
+
+fn meaning(tc: &TestCase) -> Option<Meaning> {
+    tc.draw(gs::optional(gs::sampled_from(MEANINGS.as_slice())))
+}
+
+fn overload_index(tc: &TestCase) -> Option<f64> {
+    tc.draw(gs::optional(gs::integers::<u32>())).map(f64::from)
+}
+
+fn path(tc: &TestCase, depth: usize, sources: Sources) -> ComponentPath {
     let mut path = ComponentPath::from(ComponentRoot::new(component(tc, depth, sources)));
     for _ in 0..tc.draw(gs::integers::<usize>().max_value(3)) {
-        let navigation = tc.draw(gs::sampled_from(vec![Navigation::Exports, Navigation::Members, Navigation::Locals]));
-        path = ComponentNavigation::new(path, navigation, component(tc, depth, sources)).into();
+        path = ComponentNavigation::new(path, navigation(tc), component(tc, depth, sources)).into();
     }
-    let meaning = tc.draw(gs::optional(gs::sampled_from(MEANINGS.to_vec())));
-    let overload_index = tc.draw(gs::optional(gs::integers::<u32>())).map(f64::from);
-    SymbolReference::new(Some(path), SymbolReferenceOptions { meaning, overload_index })
+    path
+}
+
+fn symbol(tc: &TestCase, depth: usize, sources: Sources) -> SymbolReference {
+    let options = SymbolReferenceOptions { meaning: meaning(tc), overload_index: overload_index(tc) };
+    SymbolReference::new(Some(path(tc, depth, sources)), options)
 }
 
 /// A reference written out parses back to the same reference.
@@ -207,8 +223,7 @@ fn package_sources_keep_their_parts(tc: TestCase) {
 /// step; a step from a symbol extends its path and drops its meaning and overload index.
 #[hegel::test(test_cases = 100)]
 fn navigation_steps_extend_the_path(tc: TestCase) {
-    let navigations = vec![Navigation::Exports, Navigation::Members, Navigation::Locals];
-    let (first, second) = (tc.draw(gs::sampled_from(navigations.clone())), tc.draw(gs::sampled_from(navigations)));
+    let (first, second) = (navigation(&tc), navigation(&tc));
     let (a, b) = (text(&tc), text(&tc));
     let module = Reference::module("m", true).unwrap();
     let reference = module.add_navigation_step(first, a.as_str()).unwrap().with_meaning(Some(Meaning::Class));
@@ -218,4 +233,272 @@ fn navigation_steps_extend_the_path(tc: TestCase) {
     let (a, b) = (Reference::escape_component_string(&a), Reference::escape_component_string(&b));
     let tilde = if expected == Navigation::Locals { "~" } else { "" };
     assert_eq!(reference.to_string(), format!("m!{tilde}{a}{second}{b}"));
+}
+
+/// Each `with_` of a reference sets its part and leaves the others, and giving it the part it has
+/// gives back the same reference. Its navigation follows upstream's rule: none without both a
+/// source and a symbol, locals in the global scope, and exports in a module unless set to locals.
+#[hegel::test(test_cases = 200)]
+fn reference_builders_set_one_part(tc: TestCase) {
+    let (reference, other) = (reference(&tc, 1, Sources::All), reference(&tc, 1, Sources::All));
+    let path_of = |reference: &Reference| reference.symbol().and_then(SymbolReference::component_path).cloned();
+    let meaning_of = |reference: &Reference| reference.symbol().and_then(SymbolReference::meaning);
+    let overload_of = |reference: &Reference| reference.symbol().and_then(SymbolReference::overload_index);
+
+    assert_eq!(reference.is_empty(), reference.to_string().is_empty(), "{reference}");
+    assert_eq!(Reference::from(Some(reference.clone())), reference);
+    assert_eq!(reference.clone().with_source(reference.source().cloned()), reference);
+    assert_eq!(reference.clone().with_symbol(reference.symbol().cloned()), reference);
+    assert_eq!(reference.clone().with_meaning(meaning_of(&reference)), reference);
+    assert_eq!(reference.clone().with_overload_index(overload_of(&reference)), reference);
+    let same_navigation = reference.clone().with_navigation(reference.navigation());
+    assert_eq!(same_navigation.to_string(), reference.to_string());
+    let rebuilt = Reference::from(None)
+        .with_source(reference.source().cloned())
+        .with_navigation(reference.navigation())
+        .with_symbol(reference.symbol().cloned());
+    assert_eq!(rebuilt.to_string(), reference.to_string());
+    assert!(Reference::empty().is_empty());
+    let global = Reference::global().with_symbol(reference.symbol().cloned());
+    let symbol = reference.symbol().map(ToString::to_string).unwrap_or_default();
+    assert_eq!(global.to_string(), format!("!{symbol}"));
+    assert_eq!(global.navigation(), reference.symbol().and(Some(Navigation::Locals)));
+
+    let with_source = reference.clone().with_source(other.source().cloned());
+    assert_eq!((with_source.source(), with_source.symbol()), (other.source(), reference.symbol()));
+    let with_symbol = reference.clone().with_symbol(other.symbol().cloned());
+    assert_eq!((with_symbol.source(), with_symbol.symbol()), (reference.source(), other.symbol()));
+
+    let navigation = tc.draw(gs::optional(gs::sampled_from(NAVIGATIONS.as_slice())));
+    let with_navigation = reference.clone().with_navigation(navigation);
+    let expected = match (reference.source(), reference.symbol()) {
+        (None, _) | (_, None) => None,
+        (Some(Source::Global(_)), _) => Some(Navigation::Locals),
+        (Some(Source::Module(_)), _) => Some(navigation.unwrap_or(Navigation::Exports)),
+    };
+    assert_eq!(with_navigation.navigation(), expected);
+    assert_eq!((with_navigation.source(), with_navigation.symbol()), (reference.source(), reference.symbol()));
+
+    let path = path(&tc, 1, Sources::All);
+    let with_path = reference.clone().with_component_path(path.clone());
+    assert_eq!(path_of(&with_path), Some(path));
+    assert_eq!((meaning_of(&with_path), overload_of(&with_path)), (meaning_of(&reference), overload_of(&reference)));
+
+    let meaning = meaning(&tc);
+    let with_meaning = reference.clone().with_meaning(meaning);
+    assert_eq!(meaning_of(&with_meaning), meaning);
+    assert_eq!((path_of(&with_meaning), overload_of(&with_meaning)), (path_of(&reference), overload_of(&reference)));
+    assert_eq!(with_meaning.source(), reference.source());
+
+    let overload_index = overload_index(&tc);
+    let with_overload = reference.clone().with_overload_index(overload_index);
+    assert_eq!(overload_of(&with_overload), overload_index);
+    assert_eq!((path_of(&with_overload), meaning_of(&with_overload)), (path_of(&reference), meaning_of(&reference)));
+    assert_eq!(with_overload.source(), reference.source());
+}
+
+/// Each `with_` of a symbol sets its part and leaves the others, and giving it the part it has gives
+/// back the same symbol. A symbol without a path can't take a navigation step, from itself or from
+/// the reference it's in.
+#[hegel::test(test_cases = 200)]
+fn symbol_builders_set_one_part(tc: TestCase) {
+    let (symbol, other) = (symbol(&tc, 1, Sources::All), symbol(&tc, 1, Sources::All));
+    let parts =
+        |symbol: &SymbolReference| (symbol.component_path().cloned(), symbol.meaning(), symbol.overload_index());
+    let (path, meaning, overload_index) = parts(&symbol);
+    let (other_path, other_meaning, other_overload_index) = parts(&other);
+
+    assert_eq!(symbol.clone().with_component_path(path.clone()), symbol);
+    assert_eq!(symbol.clone().with_meaning(meaning), symbol);
+    assert_eq!(symbol.clone().with_overload_index(overload_index), symbol);
+    let with_path = symbol.clone().with_component_path(other_path.clone());
+    assert_eq!(parts(&with_path), (other_path, meaning, overload_index));
+    let with_meaning = symbol.clone().with_meaning(other_meaning);
+    assert_eq!(parts(&with_meaning), (path.clone(), other_meaning, overload_index));
+    let with_overload_index = symbol.clone().with_overload_index(other_overload_index);
+    assert_eq!(parts(&with_overload_index), (path, meaning, other_overload_index));
+
+    assert_eq!(parts(&SymbolReference::empty()), (None, None, None));
+    assert_eq!(SymbolReference::empty().to_string(), "");
+    let pathless = symbol.with_component_path(None);
+    let message = "Cannot add a navigation step to an empty symbol reference.";
+    let step = navigation(&tc);
+    let error = pathless.clone().add_navigation_step(step, "a").unwrap_err();
+    assert_eq!((error.kind, error.to_string().as_str()), (ErrorKind::Other, message));
+    let error = Reference::new(None, None, Some(pathless)).add_navigation_step(step, "a").unwrap_err();
+    assert_eq!((error.kind, error.to_string().as_str()), (ErrorKind::Other, message));
+}
+
+/// Each `with_` of a path's root or step sets its part and leaves the others, a path's component
+/// is its last one, and a path written out is its parent, navigation and component. Anything a
+/// component can be made from becomes the component it stands for, and a component written out
+/// parses back to itself unless it brackets the empty reference.
+#[hegel::test(test_cases = 200)]
+fn component_builders_set_one_part(tc: TestCase) {
+    let (parent, other_parent) = (path(&tc, 1, Sources::All), path(&tc, 1, Sources::All));
+    let (navigation, other_navigation) = (navigation(&tc), navigation(&tc));
+    let (component, other) = (component(&tc, 1, Sources::All), component(&tc, 1, Sources::All));
+    let parts = |step: &ComponentNavigation| (step.parent().clone(), step.navigation(), step.component().clone());
+
+    let step = ComponentNavigation::new(parent.clone(), navigation, component.clone());
+    assert_eq!(parts(&step), (parent.clone(), navigation, component.clone()));
+    assert_eq!(step.clone().with_parent(parent.clone()), step);
+    assert_eq!(step.clone().with_navigation(navigation), step);
+    assert_eq!(step.clone().with_component(component.clone()), step);
+    let with_parent = step.clone().with_parent(other_parent.clone());
+    assert_eq!(parts(&with_parent), (other_parent, navigation, component.clone()));
+    let with_navigation = step.clone().with_navigation(other_navigation);
+    assert_eq!(parts(&with_navigation), (parent.clone(), other_navigation, component.clone()));
+    let with_component = step.clone().with_component(other.clone());
+    assert_eq!(parts(&with_component), (parent.clone(), navigation, other.clone()));
+    let path = ComponentPath::from(step);
+    assert_eq!(path.component(), &component);
+    assert_eq!(path.to_string(), format!("{parent}{navigation}{component}"));
+    assert_eq!(parent.add_navigation_step(navigation, component.clone()), path);
+
+    let root = ComponentRoot::new(component.clone());
+    assert_eq!(root.component(), &component);
+    assert_eq!(root.clone().with_component(component.clone()), root);
+    assert_eq!(ComponentPath::from(root.clone()).component(), &component);
+    assert_eq!(root.clone().with_component(other.clone()).component(), &other);
+
+    let text = text(&tc);
+    let (reference, other_reference) = (reference(&tc, 0, Sources::All), reference(&tc, 0, Sources::All));
+    let bracketed = ComponentReference::new(reference.clone());
+    assert_eq!(bracketed.reference(), &reference);
+    assert_eq!(bracketed.clone().with_reference(other_reference.clone()).reference(), &other_reference);
+    let escaped = ComponentString::new(&text, false).unwrap();
+    let likes: [(ComponentLike, Component); 6] = [
+        (text.as_str().into(), Component::String(escaped.clone())),
+        (text.clone().into(), Component::String(escaped.clone())),
+        (escaped.clone().into(), Component::String(escaped)),
+        (reference.clone().into(), Component::Reference(bracketed.clone())),
+        (bracketed.clone().into(), Component::Reference(bracketed)),
+        (component.clone().into(), component.clone()),
+    ];
+    for (like, expected) in likes {
+        assert_eq!(root.clone().with_component(like).component(), &expected);
+    }
+
+    let written = component.to_string();
+    let brackets_empty = matches!(&component, Component::Reference(bracketed) if bracketed.reference().is_empty());
+    assert_eq!(Reference::parse_component(&written).ok(), (!brackets_empty).then_some(component), "{written:?}");
+}
+
+/// The tokens that can come after a symbol whose overload index is closed, and how upstream's
+/// messages name them.
+const AFTER_SYMBOL: [(&str, &str); 15] = [
+    ("", "<eof>"),
+    ("{", "{"),
+    ("}", "}"),
+    ("(", "("),
+    (")", ")"),
+    ("[", "["),
+    ("!", "!"),
+    (".", "."),
+    ("#", "#"),
+    ("~", "~"),
+    (":", ":"),
+    (",", ","),
+    ("@", "@"),
+    ("\"s\"", "<string>"),
+    ("t", "<text>"),
+];
+
+/// A bracketed component that isn't closed after its symbol fails with upstream's message, naming
+/// the token that came instead of the `]`.
+#[hegel::test(test_cases = 100)]
+fn unclosed_brackets_name_the_token_instead(tc: TestCase) {
+    let meaning = tc.draw(gs::sampled_from(MEANINGS.as_slice()));
+    let overload_index = tc.draw(gs::integers::<u32>());
+    let symbol =
+        symbol(&tc, 1, Sources::All).with_meaning(Some(meaning)).with_overload_index(Some(overload_index.into()));
+    let (after, name) = tc.draw(gs::sampled_from(AFTER_SYMBOL.as_slice()));
+    // Both references start with the global scope, so the `!`s after them aren't read as the end
+    // of a module source.
+    let text = format!("![!{symbol}{after}");
+    let error = Reference::parse(&text).unwrap_err();
+    let expected = format!("Invalid DeclarationReference '{text}':\n  Expected token ']', received '{name}' instead.");
+    assert_eq!(error.kind, ErrorKind::Syntax);
+    assert!(error.to_string().starts_with(&expected), "{error}");
+}
+
+/// Numbers an overload index is often written wrong for: the ends of the plain range, zeros, and
+/// the ones JavaScript names.
+const SPECIAL_NUMBERS: [f64; 11] =
+    [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0.0, -0.0, 1e21, 9.99e20, 1e-6, 9.99e-7, -1e21, 5e-324];
+
+/// An overload index is written as JavaScript writes the number: digits that read back as it, in
+/// exponent form, with a sign, from 1e21 and below 1e-6, and `NaN`, `Infinity`, and `0` for `-0`.
+#[hegel::test(test_cases = 300)]
+fn overload_indexes_are_written_as_javascript_numbers(tc: TestCase) {
+    let number = if tc.draw(gs::weighted_booleans(0.3)) {
+        tc.draw(gs::sampled_from(SPECIAL_NUMBERS.as_slice()))
+    } else {
+        tc.draw(gs::floats::<f64>())
+    };
+    let meaning = meaning(&tc);
+    let options = SymbolReferenceOptions { meaning, overload_index: Some(number) };
+    let written = SymbolReference::new(None, options).to_string();
+    let digits = match meaning {
+        Some(meaning) => written.strip_prefix(&format!(":{meaning}(")).and_then(|rest| rest.strip_suffix(')')),
+        None => written.strip_prefix(':'),
+    };
+    let digits = digits.unwrap_or_else(|| panic!("{written:?}"));
+    match number {
+        _ if number.is_nan() => assert_eq!(digits, "NaN"),
+        f64::INFINITY => assert_eq!(digits, "Infinity"),
+        f64::NEG_INFINITY => assert_eq!(digits, "-Infinity"),
+        _ => {
+            assert_eq!(digits.parse::<f64>(), Ok(number), "{digits}");
+            assert_ne!(digits, "-0");
+            let is_exponent = number != 0.0 && !(1e-6..1e21).contains(&number.abs());
+            let exponent = digits.split_once('e').map(|(_, exponent)| exponent);
+            assert_eq!(exponent.is_some(), is_exponent, "{digits}");
+            assert!(exponent.is_none_or(|exponent| exponent.starts_with(['+', '-'])), "{digits}");
+        }
+    }
+}
+
+/// A package name part with a character NPM doesn't allow in it.
+fn bad_package_part(tc: &TestCase) -> String {
+    let mut part = package_part(tc);
+    let at = tc.draw(gs::integers::<usize>().max_value(part.len()));
+    part.insert(at, tc.draw(gs::sampled_from([' ', '$', '&', '*', '+', '=', '!'].as_slice())));
+    part
+}
+
+/// A package can't be a module source when its name isn't a package's, NPM rejects its name, or
+/// its import path is relative or absolute, and each fails with upstream's message. An import path
+/// that only starts with dots is fine.
+#[hegel::test(test_cases = 200)]
+fn package_sources_reject_bad_parts(tc: TestCase) {
+    let (scope, name) = (package_part(&tc), package_part(&tc));
+    let import_path = tc.draw(gs::from_regex("[a-z0-9]{1,3}(/[a-z0-9]{1,3}){0,1}").fullmatch(true));
+
+    let not_a_package = [String::new(), "/".into(), format!("@{scope}/"), format!("{name}/"), format!("/{name}")];
+    let not_a_package = tc.draw(gs::sampled_from(not_a_package.as_slice()));
+    let error = Reference::package(&not_a_package, None).unwrap_err();
+    assert_eq!((error.kind, error.to_string().as_str()), (ErrorKind::Other, "Parsed package must be provided."));
+
+    let bad_name = bad_package_part(&tc);
+    let message = |package_name: &str| {
+        format!("Invalid NPM package name: The package name \"{package_name}\" is not a valid package name")
+    };
+    let error = ModuleSource::from_package(&bad_name, Some(&import_path)).unwrap_err();
+    assert_eq!((error.kind, error.to_string()), (ErrorKind::Syntax, message(&bad_name)));
+    let error = ModuleSource::from_scoped_package(Some(&scope), &bad_name, None).unwrap_err();
+    assert_eq!((error.kind, error.to_string()), (ErrorKind::Syntax, message(&format!("@{scope}/{bad_name}"))));
+
+    let prefix = tc.draw(gs::sampled_from(["./", "../", "/", "\\", ".\\", "..\\"].as_slice()));
+    let bad_path = match tc.draw(gs::sampled_from([".", "..", ""].as_slice())) {
+        "" => format!("{prefix}{import_path}"),
+        dots => dots.to_owned(),
+    };
+    let error = ModuleSource::from_package(&name, Some(&bad_path)).unwrap_err();
+    // Upstream's message has no closing quote.
+    assert_eq!((error.kind, error.to_string()), (ErrorKind::Syntax, format!("Invalid import path '{bad_path}")));
+    let dotted = format!("{}{import_path}", tc.draw(gs::sampled_from([".", ".."].as_slice())));
+    let source = ModuleSource::from_package(&name, Some(&dotted)).unwrap();
+    assert_eq!(source.import_path().as_deref(), Ok(dotted.as_str()));
 }

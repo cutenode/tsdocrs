@@ -4,8 +4,12 @@
 # the same cases every run and the numbers don't move. The report lists any uncovered lines, so a
 # failure on CI says where.
 #
-# Each threshold sits just under what the Hegel properties alone reach (86.9% of lines, 87.6% of
-# functions, 84.4% of regions), which the whole suite clears (98.2%, 98.1%, 96.0%). Raise them as the
-# properties cover more.
+# Each threshold sits just under what the Hegel properties alone reach (99.92% of lines, 99.78% of
+# functions, 99.50% of regions), which the whole suite clears. They're measured the way CI builds,
+# without a compiler cache; built through sccache, a few functions nothing calls dropped out of the
+# count, and CI read up to 0.9 points lower than a local run (86.61% of functions against 87.55%).
+# With no such functions left, the two read the same. What the properties can't reach is an
+# exhaustive match's no-op arm, for the excerpts the emitter never visits, and the fallback for a
+# path `std::path::absolute` can't read, which only an empty one is.
 [alias]
-coverage = "llvm-cov nextest --no-fail-fast --show-missing-lines --fail-under-lines 86 --fail-under-functions 87 --fail-under-regions 84"
+coverage = "llvm-cov nextest --no-fail-fast --show-missing-lines --fail-under-lines 99.9 --fail-under-functions 99.7 --fail-under-regions 99.4"
