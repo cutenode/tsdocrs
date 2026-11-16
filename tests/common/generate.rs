@@ -128,6 +128,9 @@ pub const PIECES: &[&str] = &[
     "@link",
     "{@remarks}",
     "{@link (Foo:}",
+    // The same error from inside {@inheritDoc} and from a member symbol's reference.
+    "{@inheritDoc (Foo:}",
+    "{@link Foo.[(Bar:]}",
     "{@link Foo.(bar:01)}",
     "{@link Foo.(bar:Lab)}",
     "{@link Foo.(bar:x1)}",
@@ -207,6 +210,8 @@ pub const PIECES: &[&str] = &[
     "{@link Foo]x}",
     "@param {x}y -",
     "@a\u{c}b",
+    "@param {\"'\"} x -",
+    "@param [x='\"'] -",
 ];
 
 /// Constructs that take whole lines: fenced code, and the blocks whose rules span lines.
@@ -215,6 +220,9 @@ pub const BLOCKS: &[&[&str]] = &[
     &["```", "code", "  ```"],
     &["```ts  ", "a", "", "``` trailing"],
     &["```ts", "a", "```  "],
+    // Spacing inside the language line; spacing at its end is trimmed with the line.
+    &["```ts x", "a", "```"],
+    &["@internal @internal", "@beta", "@BETA"],
     &["```t`s", "a", "```"],
     &["```", "never closed"],
     &["```"],
