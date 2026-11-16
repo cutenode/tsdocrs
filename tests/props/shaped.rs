@@ -7,9 +7,9 @@ use tsdocrs::{
     TSDocConfiguration, TSDocMessageId, TSDocParser, TSDocTagDefinition, TSDocTagSyntaxKind,
     emitters::plain_text_emitter::has_any_text_content,
     nodes::{
-        DocBlockTag, DocCodeSpan, DocComment, DocExcerpt, DocFencedCode, DocHtmlAttribute, DocHtmlEndTag,
-        DocHtmlStartTag, DocInlineTag, DocLinkTag, DocMemberIdentifier, DocNode, DocParagraph, DocPlainText,
-        DocSoftBreak, InlineTagBase, LinkTagExcerpts, NodeRef,
+        DocBlockTag, DocCodeSpan, DocComment, DocDeclarationReference, DocExcerpt, DocFencedCode, DocHtmlAttribute,
+        DocHtmlEndTag, DocHtmlStartTag, DocInlineTag, DocLinkTag, DocMemberIdentifier, DocMemberReference,
+        DocMemberSelector, DocNode, DocParagraph, DocPlainText, DocSoftBreak, InlineTagBase, LinkTagExcerpts, NodeRef,
     },
     parser::TextRange,
     transforms::trim_spaces_in_paragraph,
@@ -235,6 +235,27 @@ fn holds_together(comment: &str, configuration: &TSDocConfiguration) {
     }
 }
 
+/// Ignoring undefined tags leaves out their messages and changes nothing else: the same tree, and
+/// the same other messages, or the same error.
+#[hegel::test(test_cases = 100)]
+fn ignoring_undefined_tags_drops_only_their_messages(tc: TestCase) {
+    let comment = comment(&tc);
+    let Ok(mut configuration) = configuration(config(&tc).as_ref()) else { return };
+    let reported = TSDocParser::new(&configuration).parse_string(&comment);
+    configuration.validation.ignore_undefined_tags = true;
+    let ignored = TSDocParser::new(&configuration).parse_string(&comment);
+    match (reported, ignored) {
+        (Ok(reported), Ok(ignored)) => {
+            let others: Vec<_> =
+                reported.log.iter().filter(|m| m.message_id != TSDocMessageId::UndefinedTag).cloned().collect();
+            assert_eq!(ignored.log, others, "{comment:?}");
+            assert_eq!(ignored.doc_comment, reported.doc_comment, "{comment:?}");
+        }
+        (Err(reported), Err(ignored)) => assert_eq!(ignored.message, reported.message, "{comment:?}"),
+        (reported, ignored) => panic!("{comment:?}: {reported:?} but {ignored:?}"),
+    }
+}
+
 /// Tags are found in any case, defined once, marked supported or not, and HTML elements are
 /// allowed once each.
 #[hegel::test(test_cases = 100)]
@@ -289,6 +310,19 @@ fn hand_built_nodes_emit(tc: TestCase) {
         link_text: tc.draw(gs::optional(gs::sampled_from(vec!["text".to_owned()]))),
         excerpts: LinkTagExcerpts::default(),
     };
+    // A link with no destination writes its text alone, as TSDoc's emitter does.
+    let text = tc.draw(gs::sampled_from(vec!["a", "two words"]));
+    let bare = DocLinkTag { url_destination: None, link_text: Some(text.into()), ..link.clone() };
+    let mut comment = DocComment::default();
+    comment.summary_section.nodes.push(DocParagraph { nodes: vec![bare.into()] }.into());
+    assert!(comment.emit_as_tsdoc().contains(&format!("{{@link | {text}}}")), "{}", comment.emit_as_tsdoc());
+    // A member with neither an identifier nor a symbol writes nothing but its punctuation.
+    let selector = tc.draw(gs::optional(gs::sampled_from(vec!["static", "1"])));
+    let member =
+        DocMemberReference { has_dot: true, selector: selector.map(DocMemberSelector::new), ..Default::default() };
+    let reference = DocDeclarationReference { member_references: vec![member], ..Default::default() };
+    let wanted = selector.map_or(".".to_owned(), |selector| format!(".(:{selector})"));
+    assert_eq!(reference.emit_as_tsdoc(), wanted);
     let label = DocInlineTag {
         base: InlineTagBase::new("@label").unwrap(),
         tag_content: word.into(),
