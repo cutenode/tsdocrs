@@ -77,7 +77,7 @@ jobs:
           node-version-file: .node-version
           package-manager-cache: false
       - run: rustup toolchain install
-      - uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: cargo-nextest@0.9.149
       # Fails with Jest's output when upstream's own suite fails at that commit.
