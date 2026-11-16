@@ -112,6 +112,9 @@ test("the environment names the versions and the machine", () => {
 	const lock = '[[package]]\nname = "criterion"\nversion = "0.8.2"\n';
 	assert.equal(cargoLockVersion(lock, "criterion"), "0.8.2");
 	assert.equal(cargoLockVersion(lock, "nope"), "unknown");
+	// A command's output and a file checked out on Windows can end their lines in CRLF.
+	assert.equal(cargoLockVersion(lock.replaceAll("\n", "\r\n"), "criterion"), "0.8.2");
+	assert.equal(output("node", ["-e", "process.stdout.write('a\\r\\nb')"], root), "a");
 	const env = environment(root);
 	assert.equal(env.node, process.version);
 	assert.match(env["@microsoft/tsdoc"], /^\d+\.\d+\.\d+$/);
@@ -125,6 +128,7 @@ test("the environment names the versions and the machine", () => {
 
 test("the wasm-bindgen CLI has to be the version npm/tsdocrs pins", () => {
 	assert.equal(wasmBindgenPin('a = "1"\nwasm-bindgen = "=0.2.130"\n'), "0.2.130");
+	assert.equal(wasmBindgenPin('a = "1"\r\nwasm-bindgen = "=0.2.130"\r\n'), "0.2.130");
 	assert.throws(() => wasmBindgenPin('wasm-bindgen = "0.2"\n'), /pin wasm-bindgen exactly/);
 	assert.ok(isPinned("wasm-bindgen 0.2.130\n", "0.2.130"));
 	assert.ok(!isPinned("wasm-bindgen 0.2.129", "0.2.130"));

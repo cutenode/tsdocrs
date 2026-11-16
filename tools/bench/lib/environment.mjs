@@ -4,7 +4,10 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import os from "node:os";
 
-/** The first line `command` prints, run in `cwd` with `env`, or what it failed with. */
+/**
+ * The first line `command` prints, run in `cwd` with `env`, or what it failed with. Lines end in
+ * CRLF on Windows.
+ */
 export function output(command, args, cwd, env = process.env) {
 	try {
 		return execFileSync(command, args, {
@@ -12,7 +15,7 @@ export function output(command, args, cwd, env = process.env) {
 			env,
 			encoding: "utf8",
 			stdio: ["ignore", "pipe", "ignore"],
-		}).split("\n")[0];
+		}).split(/\r?\n/)[0];
 	} catch (error) {
 		return `unavailable (${error.code ?? error.status})`;
 	}
@@ -20,7 +23,7 @@ export function output(command, args, cwd, env = process.env) {
 
 /** The version a lockfile pins for `name`, from Cargo.lock's text. */
 export function cargoLockVersion(lock, name) {
-	return lock.match(new RegExp(`name = "${name}"\\nversion = "([^"]+)"`))?.[1] ?? "unknown";
+	return lock.match(new RegExp(`name = "${name}"\\r?\\nversion = "([^"]+)"`))?.[1] ?? "unknown";
 }
 
 /** The environment of a run in the checkout at `root`, on the machine `system` (Node's `os`) describes. */
