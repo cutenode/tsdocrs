@@ -24,3 +24,8 @@ coverage() {
 # node_modules, and so have a job of their own on Linux.
 coverage suite -E 'not binary_id(tsdocrs::differential)'
 coverage props --test props
+# The benchmark harness's statistics and report, which `npm run bench` uses. Its tests need
+# `npm ci`'s tinybench and @microsoft/tsdoc.
+node --test --experimental-test-coverage --test-coverage-include='tools/bench/lib/**' \
+	--test-coverage-exclude='**/*.test.mjs' --test-coverage-lines=100 --test-coverage-functions=100 \
+	--test-coverage-branches=100 tools/bench/lib/bench.test.mjs

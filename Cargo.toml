@@ -17,6 +17,8 @@ exclude = [
     "/package.json",
     "/package-lock.json",
     "/.npmrc",
+    "/bench",
+    "/benches",
 ]
 
 [lints.rust]
@@ -39,6 +41,7 @@ serde_json = { version = "1.0.154", optional = true }
 
 [dev-dependencies]
 automod = "1.0.17"
+criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
 hegeltest = { version = "=0.52.0", features = ["static-engine"] }
 inventory = "0.3.25"
 libtest-mimic = "0.8.2"
@@ -63,3 +66,9 @@ harness = false
 [[test]]
 name = "props"
 path = "tests/props/main.rs"
+
+# tsdocrs against @microsoft/tsdoc on bench/corpus/: `npm run bench` runs this and the Node side
+# (tools/bench/) and writes one report.
+[[bench]]
+name = "parse"
+harness = false

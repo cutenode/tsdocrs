@@ -107,3 +107,19 @@ test("offsets count UTF-16 code units", () => {
 	const { messages } = tsdocrs.parse("/** 😀 @bogus */");
 	assert.equal(messages[0].pos, "/** 😀 ".length);
 });
+
+test("emit writes each comment out as @microsoft/tsdoc does", () => {
+	const benchmarked = ["small", "medium", "large"].flatMap((name) =>
+		JSON.parse(readFileSync(new URL(`../../bench/corpus/${name}.json`, import.meta.url), "utf8")),
+	);
+	for (const comment of [...corpus.map((entry) => entry.comment), ...benchmarked]) {
+		let expected;
+		try {
+			expected = new TSDocParser().parseString(comment).docComment.emitAsTsdoc();
+		} catch (error) {
+			assert.throws(() => tsdocrs.emit(comment), { message: error.message }, comment);
+			continue;
+		}
+		assert.equal(tsdocrs.emit(comment), expected, comment);
+	}
+});

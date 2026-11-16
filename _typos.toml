@@ -1,8 +1,8 @@
 # typos (tools/lint.sh).
 
 [files]
-# TSDoc's own tests and what they record, vendored as they are.
-extend-exclude = ["tests/upstream/suite/", "tests/upstream/cases.json"]
+# TSDoc's own tests and what they record, and the benchmark corpus's comments, copied as they are.
+extend-exclude = ["tests/upstream/suite/", "tests/upstream/cases.json", "bench/corpus/*.json"]
 
 [default]
 extend-ignore-re = [
