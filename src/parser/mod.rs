@@ -6,7 +6,6 @@ mod message_id;
 mod node_parser;
 mod paragraph_splitter;
 mod parser_message;
-#[allow(dead_code)]
 pub(crate) mod string_checks;
 mod text_range;
 mod token;
@@ -14,7 +13,6 @@ mod token_reader;
 mod token_sequence;
 pub mod tokenizer;
 
-pub(crate) use self::token_reader::json_string;
 pub use self::{
     message_id::TSDocMessageId,
     paragraph_splitter::split_paragraphs_for_section,

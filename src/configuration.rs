@@ -340,9 +340,8 @@ impl TSDocConfigFile {
             };
             let definition = TSDocTagDefinition::new(&tag.tag_name, kind, tag.allow_multiple)
                 .map_err(|text| (TSDocMessageId::ConfigFileInvalidTagName, text))?;
-            configuration
-                .add_tag_definition(definition)
-                .map_err(|text| (TSDocMessageId::ConfigFileDuplicateTagName, text))?;
+            // No tag has its name: that's checked above.
+            configuration.tag_definitions.push(definition);
         }
         for (name, &supported) in &self.support_for_tags {
             if configuration.set_support_for_tag(name, supported).is_err() {

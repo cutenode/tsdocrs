@@ -28,11 +28,10 @@ pub(crate) fn validate_tsdoc_tag_name(tag_name: &str) -> Result<(), String> {
 }
 
 /// Why `url` can't be an `@link` URL: one needs a scheme of ASCII letters and digits, `://`, and a
-/// character after it.
+/// character after it. The parser only asks about a URL it read, which is never empty, so this
+/// leaves out TSDoc's message for an empty one.
 pub(crate) fn explain_if_invalid_link_url(url: &str) -> Option<&'static str> {
-    if url.is_empty() {
-        return Some("The URL cannot be empty");
-    }
+    debug_assert!(!url.is_empty(), "the parser reads a URL before it checks it");
     let Some(after) = after_scheme(url) else {
         return Some(concat!(
             "An @link URL must begin with a scheme comprised only of letters and numbers followed by \"://\".",
@@ -65,16 +64,10 @@ pub(crate) fn explain_if_invalid_html_name(html_name: &str) -> Option<&'static s
     (!is_valid).then_some("An HTML name must be an ASCII letter followed by zero or more letters, digits, or hyphens")
 }
 
-/// [`explain_if_invalid_html_name`]'s explanation as an error, where upstream throws it.
-pub(crate) fn validate_html_name(html_name: &str) -> Result<(), String> {
-    explain_if_invalid_html_name(html_name).map_or(Ok(()), |explanation| Err(explanation.into()))
-}
-
 /// Why `package_name` isn't an NPM package name, with or without a scope.
+/// Every caller has a name it read, never an empty one, so this leaves out TSDoc's message for that.
 pub(crate) fn explain_if_invalid_package_name(package_name: &str) -> Option<String> {
-    if package_name.is_empty() {
-        return Some("The package name cannot be an empty string".into());
-    }
+    debug_assert!(!package_name.is_empty(), "a package name is read before it's checked");
     let name = match package_name.strip_prefix('@') {
         Some(scoped) => scoped.split_once('/').filter(|(scope, _)| is_package_name_part(scope)).map(|(_, name)| name),
         None => Some(package_name),
@@ -95,9 +88,6 @@ pub(crate) fn explain_if_invalid_import_path(
     import_path: &str,
     prefixed_by_package_name: bool,
 ) -> Option<&'static str> {
-    if import_path.is_empty() {
-        return None;
-    }
     if import_path.contains("//") {
         return Some("An import path must not contain \"//\"");
     }

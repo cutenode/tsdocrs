@@ -35,7 +35,6 @@ fn link_urls_need_a_scheme_and_something_after_it() {
         ("https://example.com", None),
         ("a1://\u{1f600}", None),
         ("H://x", None),
-        ("", Some("The URL cannot be empty")),
         ("1a://x", Some(scheme)),
         ("://x", Some(scheme)),
         ("a-b://x", Some(scheme)),
@@ -56,11 +55,9 @@ fn html_names_are_an_ascii_letter_then_letters_digits_and_hyphens() {
     let explanation = "An HTML name must be an ASCII letter followed by zero or more letters, digits, or hyphens";
     for valid in ["a", "my-element", "H1", "a--"] {
         assert_eq!(explain_if_invalid_html_name(valid), None, "{valid}");
-        assert_eq!(validate_html_name(valid), Ok(()), "{valid}");
     }
     for invalid in ["", "1a", "-a", "a_b", "a b", "\u{e9}", "a\n"] {
         assert_eq!(explain_if_invalid_html_name(invalid), Some(explanation), "{invalid:?}");
-        assert_eq!(validate_html_name(invalid), Err(explanation.to_owned()), "{invalid:?}");
     }
 }
 
@@ -69,7 +66,6 @@ fn package_names_are_an_optional_scope_and_a_name() {
     for valid in ["a", "@a/b", "a-b_c.d", "@microsoft/rush-stack-compiler-3.5", "..", "@.../_"] {
         assert_eq!(explain_if_invalid_package_name(valid), None, "{valid}");
     }
-    assert_eq!(explain_if_invalid_package_name("").as_deref(), Some("The package name cannot be an empty string"));
     for (invalid, quoted) in [
         ("@a", "\"@a\""),
         ("@/b", "\"@/b\""),
