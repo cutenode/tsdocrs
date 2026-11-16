@@ -44,11 +44,24 @@ Beyond that suite:
 - Hegel properties ([tests/props/](tests/props/)) and cargo-fuzz targets ([fuzz/](fuzz/)) for the tokenizer, the parser, and the parser against `@microsoft/tsdoc`.
 - The npm package's tests compare it with `@microsoft/tsdoc` in the same Node process.
 
+## Benchmarks
+
+With Node from [.node-version](.node-version) and rustup installed, from a fresh checkout:
+
+```sh
+npm ci
+npm run bench
+```
+
+It times parsing, and parsing and emitting TSDoc again, of three corpora of real doc comments from pinned sources ([bench/corpus/](bench/corpus/SOURCES.md)): tsdocrs in Rust with [criterion](https://crates.io/crates/criterion), and tsdocrs's npm package and `@microsoft/tsdoc` in the same Node process with [tinybench](https://www.npmjs.com/package/tinybench). It writes target/bench/report.md and report.json: mean, p50 and p95 per pass, the spread, comments and MB per second, the speedup over `@microsoft/tsdoc`, and the versions and machine it ran on. rust-toolchain.toml, .node-version and the lockfiles pin what runs; the first run also builds the wasm-bindgen CLI the npm package pins, into target/. A weekly workflow runs it too, with the report in its summary.
+
 ## Scripts
 
 ```sh
 tools/check.sh                      # everything CI checks
 tools/build-npm.sh                  # the npm package, into npm/tsdocrs/pkg
+npm run bench                       # the benchmarks, into target/bench/report.md
+tools/bench/corpus.sh               # remake bench/corpus/ from its pinned sources
 tools/upstream/vendor.sh [COMMIT]   # re-vendor TSDoc's suite
 node tools/oracle/oracle.mjs --record tests/fixtures/corpus.json   # re-record the corpus
 ```

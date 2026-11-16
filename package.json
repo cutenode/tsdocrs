@@ -1,11 +1,12 @@
 {
 	"private": true,
-	"description": "Not a package. It installs knip, oxlint, oxfmt and publint for tools/lint.sh, and @microsoft/tsdoc for the differential tests' oracle in tools/oracle. tsdocrs's npm package is in npm/tsdocrs.",
+	"description": "Not a package. It installs knip, oxlint, oxfmt and publint for tools/lint.sh, @microsoft/tsdoc for the differential tests' oracle in tools/oracle, and tinybench for `npm run bench`. tsdocrs's npm package is in npm/tsdocrs.",
 	"scripts": {
 		"knip": "knip",
 		"oxlint": "oxlint --deny-warnings",
 		"format": "oxfmt",
-		"publint": "publint"
+		"publint": "publint",
+		"bench": "node tools/bench/run.mjs"
 	},
 	"devDependencies": {
 		"@microsoft/tsdoc": "0.17.1",
@@ -13,7 +14,8 @@
 		"knip": "6.44.2",
 		"oxfmt": "0.77.0",
 		"oxlint": "1.92.0",
-		"publint": "0.3.25"
+		"publint": "0.3.25",
+		"tinybench": "6.2.3"
 	},
 	"devEngines": {
 		"packageManager": {

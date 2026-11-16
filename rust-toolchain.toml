@@ -3,4 +3,6 @@
 [toolchain]
 channel = "1.99.1"
 components = ["clippy", "llvm-tools", "rustfmt"]
+# The npm package's target, so `npm run bench` and tools/build-npm.sh have it without a step of their own.
+targets = ["wasm32-unknown-unknown"]
 profile = "minimal"
