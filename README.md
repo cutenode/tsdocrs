@@ -66,6 +66,10 @@ tools/upstream/vendor.sh [COMMIT]   # re-vendor TSDoc's suite
 node tools/oracle/oracle.mjs --record tests/fixtures/corpus.json   # re-record the corpus
 ```
 
+## Releases
+
+[release.yml](.github/workflows/release.yml) runs releases with [uppt](https://github.com/danielroe/uppt). Each push to main opens or updates a draft release PR whose version and changelog come from the conventional commits since the last tag, with npm/tsdocrs/package.json, Cargo.toml and the lockfiles bumped to match. Merging it tags the commit, cuts a GitHub release, publishes the crate to crates.io, and stages the npm package with provenance, which goes live once it's approved on npmjs.com or with `npm stage approve`. Both registries trust the workflow directly, so there are no tokens; `tools/bootstrap-publishing.sh` sets that up once. npm expires a new trust config that hasn't published within 2 days, so merge the next release PR within 2 days of running it, or run it again with `RETRUST=1` first.
+
 ## License
 
 MIT. tsdocrs is a port of Microsoft's MIT-licensed `@microsoft/tsdoc`; [LICENSE](LICENSE) carries both notices.
