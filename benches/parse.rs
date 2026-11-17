@@ -1,6 +1,8 @@
 //! tsdocrs's side of `npm run bench`: parsing each corpus in bench/corpus/, and parsing and emitting
-//! it again, with the default configuration, as tools/bench/node.mjs does with `@microsoft/tsdoc`.
-//! tools/bench/run.mjs reads criterion's samples from target/criterion/ for the report.
+//! it again, with the default configuration, as tools/bench/lib/node.mjs does with
+//! `@microsoft/tsdoc`. tools/bench/run.mjs reads criterion's samples from target/criterion/ for the
+//! report. `check`, the parse without splitting paragraphs, is here to compare with `parse`; the
+//! report leaves it out.
 
 use std::hint::black_box;
 
@@ -26,6 +28,13 @@ fn bench(c: &mut Criterion) {
             b.iter(|| {
                 for comment in &comments {
                     black_box(parser.parse_string(black_box(comment)).ok());
+                }
+            });
+        });
+        group.bench_function("check", |b| {
+            b.iter(|| {
+                for comment in &comments {
+                    black_box(parser.check_string(black_box(comment)).ok());
                 }
             });
         });

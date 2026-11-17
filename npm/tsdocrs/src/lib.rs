@@ -1,13 +1,15 @@
 //! The tsdocrs npm package: [`parse`] reads a TSDoc comment into the tree and messages
 //! `@microsoft/tsdoc` would, as plain objects, with offsets in UTF-16 code units as JavaScript
-//! strings index.
+//! strings index. [`check`] gives the messages and tags alone.
 
 use serde::{
     Serialize, Serializer,
     ser::{SerializeMap as _, SerializeSeq as _},
 };
 use tsdocrs::{
-    ParseError, ParserContext, TSDocConfigFile, TSDocConfiguration, TSDocParser, nodes::NodeRef, parser::TextRange,
+    ParseError, ParserContext, TSDocConfigFile, TSDocConfiguration, TSDocParser,
+    nodes::{NodeRef, SelectorKind},
+    parser::{TextRange, TokenKind},
 };
 use wasm_bindgen::prelude::*;
 
@@ -36,8 +38,10 @@ export interface ParserMessage {
 
 /**
  * A node of the tree, with its children in `@microsoft/tsdoc`'s order. An `Excerpt` is a run of the
- * comment's text a node was read from, with its `excerptKind`, `content`, `pos` and `end`. The other
- * fields are the node's own, where its kind has them.
+ * comment's text a node was read from, with its `excerptKind`, `pos` and `end`. Its text is the
+ * comment's from `pos` to `end`, unless it runs across a line break: then `content` has it, without
+ * the `*` that starts the next line, and a soft break's is `"\n"`. The other fields are the node's
+ * own, where its kind has them.
  */
 export interface DocNode {
   kind: string;
@@ -70,6 +74,26 @@ export interface DocNode {
   selectorKind?: "error" | "system" | "index" | "label";
 }
 
+/** A tag the parser read, the ones the tree leaves out included, like a second `@remarks`. */
+export interface ParsedTag {
+  /** Its name, with its `@`, as written. */
+  tagName: string;
+  /** Whether it's written in braces, as an inline tag. */
+  inline: boolean;
+  /** Where its name starts, in UTF-16 code units. */
+  pos: number;
+  /** Where its name ends. */
+  end: number;
+}
+
+/** What a check found. */
+export interface CheckResult {
+  /** What's wrong, in the order the parser found it. */
+  messages: ParserMessage[];
+  /** Every tag the parser read, in order. */
+  tags: ParsedTag[];
+}
+
 /** What a parse found. */
 export interface ParseResult {
   /** The text of each of the comment's lines. */
@@ -88,11 +112,25 @@ pub fn parse(
     text: &str,
     #[wasm_bindgen(unchecked_param_type = "TSDocConfigFileJson | undefined")] configuration: JsValue,
 ) -> Result<JsValue, JsError> {
-    let context = with_configuration(configuration, |configuration| parse_with(text, configuration))?;
-    let utf16 = Utf16::new(&context.buffer);
-    // One JSON string across the boundary, parsed by the engine, is several times faster than
-    // building each object with its own calls into JavaScript.
-    let json = serde_json::to_string(&Found { context: &context, utf16: &utf16 })?;
+    let context = parse_with(text, configuration, |parser, text| parser.parse_string(text))?;
+    to_js(&Found { context: &context, utf16: &Utf16::new(&context.buffer) })
+}
+
+/// Parses `text` as [`parse`] does, for its messages and tags alone. It leaves out the tree, which
+/// is most of what [`parse`] costs, and skips splitting paragraphs, a step that logs nothing.
+#[wasm_bindgen(unchecked_return_type = "CheckResult")]
+pub fn check(
+    text: &str,
+    #[wasm_bindgen(unchecked_param_type = "TSDocConfigFileJson | undefined")] configuration: JsValue,
+) -> Result<JsValue, JsError> {
+    let context = parse_with(text, configuration, |parser, text| parser.check_string(text))?;
+    to_js(&Checked { context: &context, utf16: &Utf16::new(&context.buffer) })
+}
+
+/// `value` as a JavaScript object. One JSON string across the boundary, parsed by the engine, is
+/// several times faster than building each object with its own calls into JavaScript.
+fn to_js(value: &impl Serialize) -> Result<JsValue, JsError> {
+    let json = serde_json::to_string(value)?;
     Ok(js_sys::JSON::parse(&json).expect_throw("serde_json writes valid JSON"))
 }
 
@@ -103,7 +141,7 @@ pub fn emit(
     text: &str,
     #[wasm_bindgen(unchecked_param_type = "TSDocConfigFileJson | undefined")] configuration: JsValue,
 ) -> Result<String, JsError> {
-    Ok(with_configuration(configuration, |configuration| parse_with(text, configuration))?.doc_comment.emit_as_tsdoc())
+    Ok(parse_with(text, configuration, |parser, text| parser.parse_string(text))?.doc_comment.emit_as_tsdoc())
 }
 
 thread_local! {
@@ -123,15 +161,27 @@ fn with_configuration<T>(
     f(&file.configure_parser().map_err(|(id, text)| JsError::new(&format!("{id}: {text}")))?)
 }
 
-fn parse_with(text: &str, configuration: &TSDocConfiguration) -> Result<ParserContext, JsError> {
-    TSDocParser::new(configuration).parse_string(text).map_err(|ParseError { message, .. }| JsError::new(&message))
+/// Runs `parse`, a parser's `parse_string` or `check_string`, on `text` with the parser the
+/// tsdoc.json settings `configuration` set up.
+fn parse_with(
+    text: &str,
+    configuration: JsValue,
+    parse: fn(&TSDocParser, &str) -> Result<ParserContext, ParseError>,
+) -> Result<ParserContext, JsError> {
+    with_configuration(configuration, |configuration| {
+        parse(&TSDocParser::new(configuration), text).map_err(|ParseError { message, .. }| JsError::new(&message))
+    })
 }
 
-/// UTF-16 offsets for the byte offsets of a string's characters and its end.
-struct Utf16(Vec<u32>);
+/// UTF-16 offsets for the byte offsets of a string's characters and its end, or none for ASCII,
+/// where they're the same.
+struct Utf16(Option<Vec<u32>>);
 
 impl Utf16 {
     fn new(text: &str) -> Self {
+        if text.is_ascii() {
+            return Self(None);
+        }
         let mut offsets = vec![0; text.len() + 1];
         let mut utf16 = 0;
         for (at, c) in text.char_indices() {
@@ -139,11 +189,14 @@ impl Utf16 {
             utf16 += c.len_utf16() as u32;
         }
         offsets[text.len()] = utf16;
-        Self(offsets)
+        Self(Some(offsets))
     }
 
     fn range(&self, range: TextRange) -> (u32, u32) {
-        (self.0[range.pos], self.0[range.end])
+        match &self.0 {
+            Some(offsets) => (offsets[range.pos], offsets[range.end]),
+            None => (range.pos as u32, range.end as u32),
+        }
     }
 }
 
@@ -162,6 +215,47 @@ impl Serialize for Found<'_> {
         map.serialize_entry("docComment", &Node { context, utf16, node: NodeRef::Comment(&context.doc_comment) })?;
         map.end()
     }
+}
+
+/// The messages and tags of a check.
+struct Checked<'a> {
+    context: &'a ParserContext,
+    utf16: &'a Utf16,
+}
+
+impl Serialize for Checked<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let Self { context, utf16 } = *self;
+        let mut map = serializer.serialize_map(Some(2))?;
+        map.serialize_entry("messages", &Messages { context, utf16 })?;
+        map.serialize_entry("tags", &Tags { context, utf16 })?;
+        map.end()
+    }
+}
+
+/// Every tag the parser read, with where its name is.
+struct Tags<'a> {
+    context: &'a ParserContext,
+    utf16: &'a Utf16,
+}
+
+impl Serialize for Tags<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let Self { context, utf16 } = *self;
+        serializer.collect_seq(context.tags.iter().map(|tag| {
+            let (pos, end) = utf16.range(tag.token_sequence.containing_text_range(&context.tokens));
+            Tag { tag_name: &tag.tag_name, inline: tag.inline, pos, end }
+        }))
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Tag<'a> {
+    tag_name: &'a str,
+    inline: bool,
+    pos: u32,
+    end: u32,
 }
 
 /// The text of each of the comment's lines.
@@ -221,7 +315,12 @@ impl Serialize for Node<'_> {
             NodeRef::Excerpt(excerpt) => {
                 let (pos, end) = utf16.range(excerpt.content.containing_text_range(&context.tokens));
                 map.serialize_entry("excerptKind", excerpt.excerpt_kind.as_str())?;
-                map.serialize_entry("content", &context.text(excerpt.content))?;
+                // Most excerpts are on one line, where JavaScript can slice the text itself, so only
+                // the others carry it.
+                let tokens = excerpt.content.tokens(&context.tokens);
+                if tokens.iter().any(|token| token.kind == TokenKind::Newline) {
+                    map.serialize_entry("content", &context.text(excerpt.content))?;
+                }
                 map.serialize_entry("pos", &pos)?;
                 map.serialize_entry("end", &end)?;
             }
@@ -280,15 +379,34 @@ impl Serialize for Node<'_> {
             NodeRef::MemberReference(member) => map.serialize_entry("hasDot", &member.has_dot)?,
             NodeRef::MemberSelector(selector) => {
                 map.serialize_entry("selector", &selector.selector)?;
-                map.serialize_entry("selectorKind", &format!("{:?}", selector.selector_kind).to_lowercase())?;
+                let kind = match selector.selector_kind {
+                    SelectorKind::Error => "error",
+                    SelectorKind::System => "system",
+                    SelectorKind::Index => "index",
+                    SelectorKind::Label => "label",
+                };
+                map.serialize_entry("selectorKind", kind)?;
             }
             _ => {}
         }
-        let children = node.child_nodes();
-        if !children.is_empty() {
-            let nodes: Vec<Node> = children.into_iter().map(|node| Node { context, utf16, node }).collect();
-            map.serialize_entry("nodes", &nodes)?;
+        let nodes = node.child_nodes();
+        if !nodes.is_empty() {
+            map.serialize_entry("nodes", &Nodes { context, utf16, nodes })?;
         }
         map.end()
+    }
+}
+
+/// A node's children.
+struct Nodes<'a> {
+    context: &'a ParserContext,
+    utf16: &'a Utf16,
+    nodes: Vec<NodeRef<'a>>,
+}
+
+impl Serialize for Nodes<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let Self { context, utf16, .. } = *self;
+        serializer.collect_seq(self.nodes.iter().map(|&node| Node { context, utf16, node }))
     }
 }

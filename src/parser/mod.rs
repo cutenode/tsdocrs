@@ -126,8 +126,21 @@ impl<'c> TSDocParser<'c> {
         self.parse_range(text, TextRange::new(0, text.len()))
     }
 
+    /// Parses `text` as [`parse_string`](Self::parse_string) does, for its messages and tags,
+    /// without splitting the comment's paragraphs at blank lines. That's the one step that logs
+    /// nothing, so the result is the same but for `doc_comment`, where each paragraph runs on
+    /// across blank lines, and a parse that fails fails the same way.
+    pub fn check_string(&self, text: &str) -> Result<ParserContext, ParseError> {
+        self.parse_range_with(text, TextRange::new(0, text.len()), false)
+    }
+
     /// Parses the comment in `range` of `buffer`.
     pub fn parse_range(&self, buffer: &str, range: TextRange) -> Result<ParserContext, ParseError> {
+        self.parse_range_with(buffer, range, true)
+    }
+
+    /// Parses the comment in `range` of `buffer`, splitting its paragraphs when `split` is set.
+    fn parse_range_with(&self, buffer: &str, range: TextRange, split: bool) -> Result<ParserContext, ParseError> {
         let mut context = ParserContext {
             buffer: buffer.into(),
             source_range: range,
@@ -146,7 +159,9 @@ impl<'c> TSDocParser<'c> {
                 error.log = context.log;
                 return Err(error);
             }
-            paragraph_splitter::split_paragraphs(&mut context.doc_comment);
+            if split {
+                paragraph_splitter::split_paragraphs(&mut context.doc_comment);
+            }
         }
         Ok(context)
     }
