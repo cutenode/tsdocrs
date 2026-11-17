@@ -17,7 +17,7 @@ js-sys = "0.3.107"
 serde = { version = "1.0.229", features = ["derive"] }
 serde-wasm-bindgen = "0.6.5"
 serde_json = "1.0.154"
-tsdocrs = { version = "0.1.0", path = "../..", default-features = false }
+tsdocrs = { version = "0.2.0", path = "../..", default-features = false }
 wasm-bindgen = "=0.2.130"
 
 [profile.release]
