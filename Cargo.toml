@@ -72,3 +72,9 @@ path = "tests/props/main.rs"
 [[bench]]
 name = "parse"
 harness = false
+
+# As npm/tsdocrs builds the wasm. `cargo bench` inherits it. A crate's profile doesn't reach the
+# crates that depend on it, so this sets what the benchmarks measure and nothing downstream.
+[profile.release]
+lto = "fat"
+codegen-units = 1

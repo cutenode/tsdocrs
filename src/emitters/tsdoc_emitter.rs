@@ -3,7 +3,7 @@
 
 use crate::{
     nodes::{DocComment, DocDeclarationReference, DocHtmlEndTag, DocHtmlStartTag, DocNode, InlineTagBase, NodeRef},
-    transforms::trim_spaces_in_paragraph,
+    transforms::trimmed_nodes,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -24,28 +24,28 @@ struct TSDocEmitter {
 
 const EOL: &str = "\n";
 
-impl DocComment {
+impl DocComment<'_> {
     /// It as a `/** */` comment.
     pub fn emit_as_tsdoc(&self) -> String {
         TSDocEmitter::render(NodeRef::Comment(self), true)
     }
 }
 
-impl DocDeclarationReference {
+impl DocDeclarationReference<'_> {
     /// It as TSDoc writes a declaration reference.
     pub fn emit_as_tsdoc(&self) -> String {
         TSDocEmitter::render(NodeRef::DeclarationReference(self), false)
     }
 }
 
-impl DocHtmlStartTag {
+impl DocHtmlStartTag<'_> {
     /// It as HTML.
     pub fn emit_as_html(&self) -> String {
         TSDocEmitter::render(NodeRef::HtmlStartTag(self), false)
     }
 }
 
-impl DocHtmlEndTag {
+impl DocHtmlEndTag<'_> {
     /// It as HTML.
     pub fn emit_as_html(&self) -> String {
         TSDocEmitter::render(NodeRef::HtmlEndTag(self), false)
@@ -220,14 +220,14 @@ impl TSDocEmitter {
             NodeRef::Section(section) => section.nodes.iter().for_each(|node| self.render_node(node.as_ref())),
             NodeRef::SoftBreak(_) => self.ensure_at_start_of_line(),
             NodeRef::Paragraph(paragraph) => {
-                let trimmed = trim_spaces_in_paragraph(paragraph);
-                if !trimmed.nodes.is_empty() {
+                let trimmed = trimmed_nodes(paragraph);
+                if !trimmed.is_empty() {
                     if self.hanging_paragraph {
                         self.hanging_paragraph = false;
                     } else {
                         self.ensure_line_skipped();
                     }
-                    trimmed.nodes.iter().for_each(|node: &DocNode| self.render_node(node.as_ref()));
+                    trimmed.iter().for_each(|node| self.render_node(DocNode::as_ref(node)));
                     self.write_newline();
                 }
             }
@@ -281,12 +281,12 @@ impl TSDocEmitter {
         }
         if content.contains('\n') {
             // Lines end in `\n` or `\r\n`.
-            let lines: Vec<&str> = content.split('\n').collect();
-            for (i, line) in lines.iter().enumerate() {
+            let mut lines = content.split('\n').enumerate().peekable();
+            while let Some((i, line)) = lines.next() {
                 if i > 0 {
                     self.write_newline();
                 }
-                let ends_line = i + 1 < lines.len();
+                let ends_line = lines.peek().is_some();
                 self.write_content(line.strip_suffix('\r').filter(|_| ends_line).unwrap_or(line));
             }
             return;

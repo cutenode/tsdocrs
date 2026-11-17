@@ -1,16 +1,18 @@
 //! HTML tags.
 
+use std::borrow::Cow;
+
 use super::{DocExcerpt, NodeRef, push};
 
 /// An HTML start tag, like `<a href="#">` or `<br/>`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocHtmlStartTag {
+pub struct DocHtmlStartTag<'a> {
     /// The element's name.
-    pub name: String,
+    pub name: Cow<'a, str>,
     /// The spacing after its name.
-    pub spacing_after_name: Option<String>,
+    pub spacing_after_name: Option<Cow<'a, str>>,
     /// Its attributes.
-    pub html_attributes: Vec<DocHtmlAttribute>,
+    pub html_attributes: Vec<DocHtmlAttribute<'a>>,
     /// Whether it ends in `/>`.
     pub self_closing_tag: bool,
     /// Its `<`, name, spacing and closing excerpts, when it was parsed.
@@ -27,8 +29,8 @@ pub struct HtmlTagExcerpts {
     pub closing_delimiter: Option<DocExcerpt>,
 }
 
-impl DocHtmlStartTag {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocHtmlStartTag<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         let e = &self.excerpts;
         push(children, &e.opening_delimiter);
         push(children, &e.name);
@@ -40,15 +42,15 @@ impl DocHtmlStartTag {
 
 /// An HTML end tag, like `</a>`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocHtmlEndTag {
+pub struct DocHtmlEndTag<'a> {
     /// The element's name.
-    pub name: String,
+    pub name: Cow<'a, str>,
     /// Its `</`, name, spacing and `>` excerpts, when it was parsed.
     pub excerpts: HtmlTagExcerpts,
 }
 
-impl DocHtmlEndTag {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocHtmlEndTag<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         let e = &self.excerpts;
         push(children, &e.opening_delimiter);
         push(children, &e.name);
@@ -59,17 +61,17 @@ impl DocHtmlEndTag {
 
 /// An HTML attribute, like `href="#"`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocHtmlAttribute {
+pub struct DocHtmlAttribute<'a> {
     /// Its name.
-    pub name: String,
+    pub name: Cow<'a, str>,
     /// The spacing after its name.
-    pub spacing_after_name: Option<String>,
+    pub spacing_after_name: Option<Cow<'a, str>>,
     /// The spacing after its `=`.
-    pub spacing_after_equals: Option<String>,
+    pub spacing_after_equals: Option<Cow<'a, str>>,
     /// Its value, quotes and all.
-    pub value: String,
+    pub value: Cow<'a, str>,
     /// The spacing after its value.
-    pub spacing_after_value: Option<String>,
+    pub spacing_after_value: Option<Cow<'a, str>>,
     /// Its excerpts, when it was parsed.
     pub excerpts: HtmlAttributeExcerpts,
 }
@@ -86,8 +88,8 @@ pub struct HtmlAttributeExcerpts {
     pub spacing_after_value: Option<DocExcerpt>,
 }
 
-impl DocHtmlAttribute {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocHtmlAttribute<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         let e = &self.excerpts;
         for excerpt in
             [&e.name, &e.spacing_after_name, &e.equals, &e.spacing_after_equals, &e.value, &e.spacing_after_value]

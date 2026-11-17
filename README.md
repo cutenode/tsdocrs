@@ -16,6 +16,7 @@ for message in &context.log {
 ```
 
 - `TSDocParser::parse_string` gives a `ParserContext`: the comment's lines, tokens, `doc_comment` tree and `log` of messages. It returns an error where `@microsoft/tsdoc` throws (it does on a few inputs, like `{@link (Foo:}`), with the same message.
+- `TSDocParser::check_string` is `parse_string` without the last step, splitting paragraphs at blank lines, which logs nothing. Its `log`, `tags` and `tokens` are the same, for a caller that doesn't read the tree.
 - `nodes::NodeRef` views any node, with its `kind()` and its `child_nodes()` in TSDoc's order, excerpts included. Each node kind is a struct with TSDoc's fields, like `DocParamBlock::parameter_name`.
 - `config_file::load` reads a tsdoc.json and the files it `extends`; `config_file::find` finds the one tsdoc-config would use for a source file. Turn off the `config-file` feature to leave out file reading; `TSDocConfigFile::configure_parser` still sets up a parser from a tsdoc.json's settings.
 - `emitters` writes a tree back out as TSDoc, and `beta::declaration_reference` is TSDoc's beta DeclarationReference parser.
@@ -29,7 +30,11 @@ const { parse } = require("tsdocrs");
 const { messages, docComment } = parse("/** @bogus */", { tagDefinitions: [{ tagName: "@mine", syntaxKind: "block" }] });
 ```
 
-`parse(text, settings?)` takes a tsdoc.json's settings without `extends`, and gives the lines, the messages and the tree as plain objects, with offsets in UTF-16 code units as JavaScript strings index. TypeScript types ship with it.
+`parse(text, settings?)` takes a tsdoc.json's settings without `extends`, and gives the lines, the messages and the tree as plain objects, with offsets in UTF-16 code units as JavaScript strings index. An excerpt on one line leaves its text to `text.slice(pos, end)`; one across lines has it as `content`. TypeScript types ship with it.
+
+`parseTree(text, settings?)` gives what `parse` does, with a tree that reads its nodes from the parse's buffers as they're used, and `parseMany(texts, settings?)` parses a list of comments in one call that way, for a caller that reads less than the whole tree or parses many comments.
+
+`check(text, settings?)` gives the same messages and each tag the parser read, as `{ tagName, inline, pos, end }`, without the tree. For a linter that only reports messages, it's the cheaper call.
 
 It's built with [wasm-bindgen](https://github.com/wasm-bindgen/wasm-bindgen), which is actively maintained, and runs as one WebAssembly file on every platform Node runs on. An editor extension or a linter plugin gets no native binary per platform to download, and a parse is one call with a string in and an object out.
 

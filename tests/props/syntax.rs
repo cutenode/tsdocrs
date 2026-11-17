@@ -60,7 +60,8 @@ fn html_names_are_a_letter_then_letters_digits_and_hyphens(tc: TestCase) {
     let rule = Regex::new("^[A-Za-z]+[A-Za-z0-9-]*$").unwrap();
     let name = format!("{}{}", string(&tc, "aZ1-._", 1).chars().next().unwrap_or('a'), string(&tc, "aZ1-._", 3));
     let explanation = "An HTML name must be an ASCII letter followed by zero or more letters, digits, or hyphens";
-    let context = TSDocParser::default().parse_string(&format!("/** <{name}> */")).unwrap();
+    let text = format!("/** <{name}> */");
+    let context = TSDocParser::default().parse_string(&text).unwrap();
     let invalid = context.log.iter().any(|m| m.unformatted_text.ends_with(explanation));
     assert_eq!(invalid, !rule.is_match(&name), "{name:?}");
 }

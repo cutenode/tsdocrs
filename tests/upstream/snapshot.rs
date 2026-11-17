@@ -137,7 +137,7 @@ pub fn node_snapshot(context: Option<&ParserContext>, node: NodeRef) -> Value {
             entries.push(("errorLocation", escaped(&context.text(error.error_location)).into()));
             if error.error_location.start_index > 0 {
                 let preceding = context.tokens[error.error_location.start_index - 1];
-                entries.push(("errorLocationPrecedingToken", preceding.text(&context.buffer).into()));
+                entries.push(("errorLocationPrecedingToken", preceding.text(context.buffer).into()));
             }
         }
         _ => {}
@@ -194,7 +194,7 @@ pub fn coverage_gaps(context: &ParserContext, root: NodeRef) -> Result<Vec<Strin
     if let Some(start) = gap_start.filter(|&start| start != 0) {
         gaps.push(TokenSequence::new(start, context.tokens.len()));
     }
-    Ok(gaps.into_iter().map(|gap| context.text(gap)).collect())
+    Ok(gaps.into_iter().map(|gap| context.text(gap).into_owned()).collect())
 }
 
 /// The configuration a recorded `parse` event's `configuration` describes.
@@ -225,7 +225,7 @@ pub fn configuration(json: &Json) -> TSDocConfiguration {
 }
 
 /// Parses `text` with the configuration `json` describes.
-pub fn parse(text: &str, json: &Json) -> Result<ParserContext, String> {
+pub fn parse<'a>(text: &'a str, json: &Json) -> Result<ParserContext<'a>, String> {
     TSDocParser::new(&configuration(json)).parse_string(text).map_err(|e| format!("tsdocrs failed: {e}"))
 }
 

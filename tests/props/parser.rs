@@ -1,11 +1,14 @@
-//! Properties of the parser on any text: it never panics, its tokens spell out each line, its
-//! excerpts never overlap and stay in order, and its messages point inside the text.
+//! Properties of the parser on any text: it never panics, its tokens spell out each line, a run of
+//! them reads as their text, its excerpts never overlap and stay in order, and its messages point
+//! inside the text.
+
+use std::borrow::Cow;
 
 use hegel::{Generator, TestCase, generators as gs};
 use tsdocrs::{
     TSDocParser,
     nodes::NodeRef,
-    parser::{TextRange, TokenKind, tokenizer},
+    parser::{TextRange, TokenKind, TokenSequence, tokenizer},
 };
 
 /// Text that's usually a comment, with TSDoc's punctuation over-represented.
@@ -38,7 +41,7 @@ fn tokens_spell_out_each_line(tc: TestCase) {
     for &line in &context.lines {
         let mut spelled = String::new();
         while let Some(token) = tokens.next_if(|token| token.kind != TokenKind::Newline) {
-            assert_eq!(token.line, line);
+            assert_eq!(token.line(&context.lines), line);
             spelled += token.text(&text);
         }
         assert_eq!(spelled, line.text(&text));
@@ -46,6 +49,23 @@ fn tokens_spell_out_each_line(tc: TestCase) {
     }
     assert_eq!(tokens.next().map(|token| token.kind), Some(TokenKind::EndOfInput));
     assert!(tokens.next().is_none());
+}
+
+/// A run of tokens reads as its tokens' texts joined, borrowed from the text when the run stays on
+/// one line and copied when it crosses one.
+#[hegel::test(test_cases = 300)]
+fn token_runs_read_as_their_tokens(tc: TestCase) {
+    let text = text(&tc);
+    let Ok(context) = TSDocParser::default().parse_string(&text) else { return };
+    let count = context.tokens.len();
+    let start = tc.draw(gs::integers::<usize>().max_value(count));
+    let end = tc.draw(gs::integers::<usize>().min_value(start).max_value(count));
+    let sequence = TokenSequence::new(start, end);
+    let tokens = sequence.tokens(&context.tokens);
+    let read = context.text(sequence);
+    assert_eq!(read, tokens.iter().map(|token| token.text(&text)).collect::<String>());
+    let one_line = tokens.iter().all(|token| token.kind != TokenKind::Newline);
+    assert_eq!(matches!(read, Cow::Borrowed(_)), one_line, "{text:?} {start}..{end}");
 }
 
 #[hegel::test(test_cases = 300)]

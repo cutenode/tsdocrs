@@ -1,20 +1,22 @@
 //! Text and code: plain text, line breaks, escapes, mistakes, block tags, code spans and fences.
 
+use std::borrow::Cow;
+
 use super::{DocExcerpt, ExcerptKind, NodeRef, push};
 use crate::parser::{TSDocMessageId, TokenSequence};
 
 /// Plain text, on one line.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DocPlainText {
+pub struct DocPlainText<'a> {
     /// The text.
-    pub text: String,
+    pub text: Cow<'a, str>,
     /// Its excerpt, when it was parsed.
     pub text_excerpt: Option<DocExcerpt>,
 }
 
-impl DocPlainText {
+impl<'a> DocPlainText<'a> {
     /// Text without newlines, built by hand.
-    pub fn new(text: impl Into<String>) -> Result<Self, String> {
+    pub fn new(text: impl Into<Cow<'a, str>>) -> Result<Self, String> {
         let text = text.into();
         if text.contains('\n') {
             return Err("The DocPlainText content must not contain newline characters".into());
@@ -22,7 +24,7 @@ impl DocPlainText {
         Ok(Self { text, text_excerpt: None })
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         push(children, &self.text_excerpt);
     }
 }
@@ -35,16 +37,16 @@ pub struct DocSoftBreak {
 }
 
 impl DocSoftBreak {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         push(children, &self.soft_break_excerpt);
     }
 }
 
 /// Text the parser couldn't read, with what's wrong with it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DocErrorText {
+pub struct DocErrorText<'a> {
     /// The text.
-    pub text: String,
+    pub text: Cow<'a, str>,
     /// Its excerpt.
     pub text_excerpt: DocExcerpt,
     /// What's wrong.
@@ -55,8 +57,8 @@ pub struct DocErrorText {
     pub error_location: TokenSequence,
 }
 
-impl DocErrorText {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocErrorText<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         children.push(NodeRef::Excerpt(&self.text_excerpt));
     }
 }
@@ -70,42 +72,42 @@ pub enum EscapeStyle {
 
 /// An escaped character.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DocEscapedText {
+pub struct DocEscapedText<'a> {
     /// How it's escaped.
     pub escape_style: EscapeStyle,
     /// The text as written, like `\{`.
-    pub encoded_text: String,
+    pub encoded_text: Cow<'a, str>,
     /// Its excerpt.
     pub encoded_text_excerpt: DocExcerpt,
     /// The character it stands for.
-    pub decoded_text: String,
+    pub decoded_text: Cow<'a, str>,
 }
 
-impl DocEscapedText {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocEscapedText<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         children.push(NodeRef::Excerpt(&self.encoded_text_excerpt));
     }
 }
 
 /// A block or modifier tag's name, like `@remarks`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DocBlockTag {
+pub struct DocBlockTag<'a> {
     /// Its name, with its `@`.
-    pub tag_name: String,
+    pub tag_name: Cow<'a, str>,
     /// The same, upper-cased.
     pub tag_name_with_upper_case: String,
     /// Its excerpt, when it was parsed.
     pub tag_name_excerpt: Option<DocExcerpt>,
 }
 
-impl DocBlockTag {
+impl<'a> DocBlockTag<'a> {
     /// A tag named `tag_name`, built by hand, or why it can't be.
     pub fn new(tag_name: &str) -> Result<Self, String> {
         crate::parser::string_checks::validate_tsdoc_tag_name(tag_name)?;
-        Ok(Self::parsed(tag_name.into(), None))
+        Ok(Self::parsed(Cow::Owned(tag_name.to_owned()), None))
     }
 
-    pub(crate) fn parsed(tag_name: String, excerpt: Option<TokenSequence>) -> Self {
+    pub(crate) fn parsed(tag_name: Cow<'a, str>, excerpt: Option<TokenSequence>) -> Self {
         let tag_name_with_upper_case = tag_name.to_uppercase();
         let tag_name_excerpt = DocExcerpt::of(ExcerptKind::BlockTag, excerpt);
         Self { tag_name, tag_name_with_upper_case, tag_name_excerpt }
@@ -116,39 +118,39 @@ impl DocBlockTag {
         self.tag_name_excerpt.map(|excerpt| excerpt.content)
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         push(children, &self.tag_name_excerpt);
     }
 }
 
 /// Code in backticks: `` `code` ``.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DocCodeSpan {
+pub struct DocCodeSpan<'a> {
     /// The code.
-    pub code: String,
+    pub code: Cow<'a, str>,
     /// The excerpts of its opening backtick, its code and its closing backtick, when it was
     /// parsed.
     pub excerpts: Option<[DocExcerpt; 3]>,
 }
 
-impl DocCodeSpan {
+impl<'a> DocCodeSpan<'a> {
     /// A code span of `code`, built by hand.
-    pub fn new(code: impl Into<String>) -> Self {
+    pub fn new(code: impl Into<Cow<'a, str>>) -> Self {
         Self { code: code.into(), excerpts: None }
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         children.extend(self.excerpts.iter().flatten().map(NodeRef::Excerpt));
     }
 }
 
 /// A fenced code block.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocFencedCode {
+pub struct DocFencedCode<'a> {
     /// Its language, or empty.
-    pub language: String,
+    pub language: Cow<'a, str>,
     /// Its code, up to and with the newline before the closing fence.
-    pub code: String,
+    pub code: Cow<'a, str>,
     /// Its excerpts, when it was parsed.
     pub excerpts: FencedCodeExcerpts,
 }
@@ -167,13 +169,13 @@ pub struct FencedCodeExcerpts {
     pub spacing_after_closing_fence: Option<DocExcerpt>,
 }
 
-impl DocFencedCode {
+impl<'a> DocFencedCode<'a> {
     /// A code block of `code` in `language`, built by hand.
-    pub fn new(language: impl Into<String>, code: impl Into<String>) -> Self {
+    pub fn new(language: impl Into<Cow<'a, str>>, code: impl Into<Cow<'a, str>>) -> Self {
         Self { language: language.into(), code: code.into(), excerpts: FencedCodeExcerpts::default() }
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         let e = &self.excerpts;
         for excerpt in [
             &e.opening_fence,

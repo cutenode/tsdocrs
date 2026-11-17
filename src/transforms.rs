@@ -1,5 +1,7 @@
 //! Transforms of a tree: `@microsoft/tsdoc`'s DocNodeTransforms.
 
+use std::borrow::Cow;
+
 use crate::{
     nodes::{DocNode, DocParagraph, DocPlainText, DocSoftBreak},
     parser::is_whitespace,
@@ -8,8 +10,14 @@ use crate::{
 /// A copy of `paragraph` with its spacing collapsed, as rendered text would show it: a run of
 /// whitespace becomes one space, spaces at the paragraph's start and end go, and its plain text
 /// and soft breaks are rebuilt by hand, one plain text a line.
-pub fn trim_spaces_in_paragraph(paragraph: &DocParagraph) -> DocParagraph {
-    let mut transformed: Vec<DocNode> = Vec::new();
+pub fn trim_spaces_in_paragraph<'a>(paragraph: &DocParagraph<'a>) -> DocParagraph<'a> {
+    DocParagraph { nodes: trimmed_nodes(paragraph).into_iter().map(Cow::into_owned).collect() }
+}
+
+/// The nodes [`trim_spaces_in_paragraph`] gives, borrowing the ones it keeps as they are, so the
+/// emitter can render them without copying.
+pub(crate) fn trimmed_nodes<'r, 'a>(paragraph: &'r DocParagraph<'a>) -> Vec<Cow<'r, DocNode<'a>>> {
+    let mut transformed = Vec::new();
     // The text since the last node that isn't text, and whether there's any, even empty.
     let (mut accumulated, mut accumulating) = (String::new(), false);
     let mut pending_space = false;
@@ -17,16 +25,21 @@ pub fn trim_spaces_in_paragraph(paragraph: &DocParagraph) -> DocParagraph {
     for node in &paragraph.nodes {
         match node {
             DocNode::PlainText(text) => {
-                let collapsed = text.text.split(is_whitespace).filter(|word| !word.is_empty()).collect::<Vec<_>>();
+                let mut words = text.text.split(is_whitespace).filter(|word| !word.is_empty()).peekable();
                 if text.text.starts_with(is_whitespace) && finished_skipping_leading_spaces {
                     pending_space = true;
                 }
-                if !collapsed.is_empty() {
+                if words.peek().is_some() {
                     if pending_space {
                         accumulated.push(' ');
                         pending_space = false;
                     }
-                    accumulated += &collapsed.join(" ");
+                    for (i, word) in words.enumerate() {
+                        if i > 0 {
+                            accumulated.push(' ');
+                        }
+                        accumulated += word;
+                    }
                     accumulating = true;
                     finished_skipping_leading_spaces = true;
                 }
@@ -48,7 +61,7 @@ pub fn trim_spaces_in_paragraph(paragraph: &DocParagraph) -> DocParagraph {
                     push_accumulated_text(&std::mem::take(&mut accumulated), true, &mut transformed);
                     accumulating = false;
                 }
-                transformed.push(node.clone());
+                transformed.push(Cow::Borrowed(node));
                 finished_skipping_leading_spaces = true;
             }
         }
@@ -56,22 +69,23 @@ pub fn trim_spaces_in_paragraph(paragraph: &DocParagraph) -> DocParagraph {
     if accumulating {
         push_accumulated_text(&accumulated, false, &mut transformed);
     }
-    DocParagraph { nodes: transformed }
+    transformed
 }
 
 /// Adds `text` as plain text, a soft break between its lines.
-fn push_accumulated_text(text: &str, followed_by_inline_node: bool, out: &mut Vec<DocNode>) {
-    let lines: Vec<&str> = text.split('\n').collect();
-    for (i, line) in lines.iter().enumerate() {
+fn push_accumulated_text(text: &str, followed_by_inline_node: bool, out: &mut Vec<Cow<'_, DocNode<'_>>>) {
+    let soft_break = || Cow::Owned(DocSoftBreak::default().into());
+    let last = text.matches('\n').count();
+    for (i, line) in text.split('\n').enumerate() {
         if line.is_empty() {
-            if followed_by_inline_node && i != 0 && i == lines.len() - 1 {
-                out.push(DocSoftBreak::default().into());
+            if followed_by_inline_node && i != 0 && i == last {
+                out.push(soft_break());
             }
             continue;
         }
         if i != 0 {
-            out.push(DocSoftBreak::default().into());
+            out.push(soft_break());
         }
-        out.push(DocPlainText { text: (*line).to_owned(), text_excerpt: None }.into());
+        out.push(Cow::Owned(DocPlainText { text: Cow::Owned(line.to_owned()), text_excerpt: None }.into()));
     }
 }

@@ -21,6 +21,8 @@ pub use self::{
     token::{Token, TokenKind},
     token_sequence::TokenSequence,
 };
+use std::borrow::Cow;
+
 use crate::{TSDocConfiguration, nodes::DocComment};
 
 /// Whether `c` is whitespace to JavaScript's `\s`, which TSDoc's checks of whitespace use.
@@ -52,11 +54,11 @@ impl std::fmt::Display for ParseError {
 
 impl std::error::Error for ParseError {}
 
-/// What a parse found.
+/// What a parse found, borrowing the text it was given.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParserContext {
+pub struct ParserContext<'a> {
     /// The whole text it was given.
-    pub buffer: String,
+    pub buffer: &'a str,
     /// The part of it that was parsed.
     pub source_range: TextRange,
     /// The comment, from its `/**` to its `*/`, or empty when there wasn't one.
@@ -66,35 +68,35 @@ pub struct ParserContext {
     /// The tokens of those lines, an end-of-input token last.
     pub tokens: Vec<Token>,
     /// The comment's tree.
-    pub doc_comment: DocComment,
+    pub doc_comment: DocComment<'a>,
     /// What's wrong with it, in the order the parser found it.
     pub log: Vec<ParserMessage>,
     /// Every tag the parser read, in order, with the ones the tree leaves out: a block replaced by
     /// a later one of its kind, like a second `@remarks`, and a modifier tag used again. Not part
     /// of `@microsoft/tsdoc`'s model; it's for checks of what the tree loses, like a repeated tag.
-    pub tags: Vec<ParsedTag>,
+    pub tags: Vec<ParsedTag<'a>>,
 }
 
 /// A tag the parser read: one it checked against the configuration.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParsedTag {
+pub struct ParsedTag<'a> {
     /// Its name, with its `@`, as written.
-    pub tag_name: String,
+    pub tag_name: Cow<'a, str>,
     /// Whether it's written in braces, as an inline tag.
     pub inline: bool,
     /// The tokens of its name.
     pub token_sequence: TokenSequence,
 }
 
-impl ParserContext {
+impl<'a> ParserContext<'a> {
     /// The text of `sequence`'s tokens.
-    pub fn text(&self, sequence: TokenSequence) -> String {
-        sequence.text(&self.buffer, &self.tokens)
+    pub fn text(&self, sequence: TokenSequence) -> Cow<'a, str> {
+        sequence.text(self.buffer, &self.tokens)
     }
 
     /// The text of `range`.
-    pub fn range_text(&self, range: TextRange) -> &str {
-        range.text(&self.buffer)
+    pub fn range_text(&self, range: TextRange) -> &'a str {
+        range.text(self.buffer)
     }
 }
 
@@ -122,14 +124,32 @@ impl<'c> TSDocParser<'c> {
     }
 
     /// Parses `text`, a `/** */` comment with nothing but whitespace around it.
-    pub fn parse_string(&self, text: &str) -> Result<ParserContext, ParseError> {
+    pub fn parse_string<'a>(&self, text: &'a str) -> Result<ParserContext<'a>, ParseError> {
         self.parse_range(text, TextRange::new(0, text.len()))
     }
 
+    /// Parses `text` as [`parse_string`](Self::parse_string) does, for its messages and tags,
+    /// without splitting the comment's paragraphs at blank lines. That's the one step that logs
+    /// nothing, so the result is the same but for `doc_comment`, where each paragraph runs on
+    /// across blank lines, and a parse that fails fails the same way.
+    pub fn check_string<'a>(&self, text: &'a str) -> Result<ParserContext<'a>, ParseError> {
+        self.parse_range_with(text, TextRange::new(0, text.len()), false)
+    }
+
     /// Parses the comment in `range` of `buffer`.
-    pub fn parse_range(&self, buffer: &str, range: TextRange) -> Result<ParserContext, ParseError> {
+    pub fn parse_range<'a>(&self, buffer: &'a str, range: TextRange) -> Result<ParserContext<'a>, ParseError> {
+        self.parse_range_with(buffer, range, true)
+    }
+
+    /// Parses the comment in `range` of `buffer`, splitting its paragraphs when `split` is set.
+    fn parse_range_with<'a>(
+        &self,
+        buffer: &'a str,
+        range: TextRange,
+        split: bool,
+    ) -> Result<ParserContext<'a>, ParseError> {
         let mut context = ParserContext {
-            buffer: buffer.into(),
+            buffer,
             source_range: range,
             comment_range: TextRange::EMPTY,
             lines: Vec::new(),
@@ -146,7 +166,9 @@ impl<'c> TSDocParser<'c> {
                 error.log = context.log;
                 return Err(error);
             }
-            paragraph_splitter::split_paragraphs(&mut context.doc_comment);
+            if split {
+                paragraph_splitter::split_paragraphs(&mut context.doc_comment);
+            }
         }
         Ok(context)
     }

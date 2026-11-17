@@ -1,36 +1,38 @@
 //! The comment and its parts: sections, paragraphs, blocks and `@param` blocks.
 
+use std::borrow::Cow;
+
 use super::{DocBlockTag, DocExcerpt, DocInheritDocTag, DocNode, DocNodeKind, NodeRef, push};
 
 /// A whole doc comment.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocComment {
+pub struct DocComment<'a> {
     /// The text before the first block tag.
-    pub summary_section: DocSection,
+    pub summary_section: DocSection<'a>,
     /// The last `@remarks` block.
-    pub remarks_block: Option<DocBlock>,
+    pub remarks_block: Option<DocBlock<'a>>,
     /// The last `@privateRemarks` block.
-    pub private_remarks: Option<DocBlock>,
+    pub private_remarks: Option<DocBlock<'a>>,
     /// The last `@deprecated` block.
-    pub deprecated_block: Option<DocBlock>,
+    pub deprecated_block: Option<DocBlock<'a>>,
     /// The `@param` blocks.
-    pub params: DocParamCollection,
+    pub params: DocParamCollection<'a>,
     /// The `@typeParam` blocks.
-    pub type_params: DocParamCollection,
+    pub type_params: DocParamCollection<'a>,
     /// The last `@returns` block.
-    pub returns_block: Option<DocBlock>,
+    pub returns_block: Option<DocBlock<'a>>,
     /// The `@see` blocks.
-    pub see_blocks: Vec<DocBlock>,
+    pub see_blocks: Vec<DocBlock<'a>>,
     /// The other blocks, like `@example`.
-    pub custom_blocks: Vec<DocBlock>,
+    pub custom_blocks: Vec<DocBlock<'a>>,
     /// Its `{@inheritDoc}`, the first if it has more.
-    pub inherit_doc_tag: Option<DocInheritDocTag>,
+    pub inherit_doc_tag: Option<DocInheritDocTag<'a>>,
     /// Its modifier tags, like `@public`.
-    pub modifier_tag_set: ModifierTagSet,
+    pub modifier_tag_set: ModifierTagSet<'a>,
 }
 
-impl DocComment {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocComment<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         children.push(NodeRef::Section(&self.summary_section));
         push(children, &self.remarks_block);
         push(children, &self.private_remarks);
@@ -51,20 +53,27 @@ impl DocComment {
 
 /// A comment's modifier tags, each once.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ModifierTagSet {
+pub struct ModifierTagSet<'a> {
     /// The tags, in the order they came.
-    pub nodes: Vec<DocBlockTag>,
+    pub nodes: Vec<DocBlockTag<'a>>,
 }
 
-impl ModifierTagSet {
+impl<'a> ModifierTagSet<'a> {
     /// Whether it has the tag named `tag_name`, in any case.
     pub fn has_tag_name(&self, tag_name: &str) -> bool {
+        // Every tag the parser reads has an ASCII name, which upper-cases byte by byte without a
+        // copy. Other text can upper-case into ASCII, as `ı` does into `I`, so it takes the full
+        // mapping.
+        if tag_name.is_ascii() {
+            let upper = || tag_name.bytes().map(|b| b.to_ascii_uppercase());
+            return self.nodes.iter().any(|tag| tag.tag_name_with_upper_case.bytes().eq(upper()));
+        }
         let upper = tag_name.to_uppercase();
         self.nodes.iter().any(|tag| tag.tag_name_with_upper_case == upper)
     }
 
     /// Adds `tag`, unless it has a tag of that name already, and says whether it did.
-    pub fn add_tag(&mut self, tag: DocBlockTag) -> bool {
+    pub fn add_tag(&mut self, tag: DocBlockTag<'a>) -> bool {
         if self.has_tag_name(&tag.tag_name) {
             return false;
         }
@@ -130,14 +139,14 @@ impl ModifierTagSet {
 
 /// A section: paragraphs, and the fenced code and HTML tags between them.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocSection {
+pub struct DocSection<'a> {
     /// What it holds.
-    pub nodes: Vec<DocNode>,
+    pub nodes: Vec<DocNode<'a>>,
 }
 
-impl DocSection {
+impl<'a> DocSection<'a> {
     /// Adds `node` to its last paragraph, starting one if its last node isn't one.
-    pub fn append_node_in_paragraph(&mut self, node: DocNode) {
+    pub fn append_node_in_paragraph(&mut self, node: DocNode<'a>) {
         if let Some(DocNode::Paragraph(paragraph)) = self.nodes.last_mut() {
             paragraph.nodes.push(node);
             return;
@@ -145,20 +154,20 @@ impl DocSection {
         self.nodes.push(DocNode::Paragraph(DocParagraph { nodes: vec![node] }));
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         children.extend(self.nodes.iter().map(DocNode::as_ref));
     }
 }
 
 /// A paragraph.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocParagraph {
+pub struct DocParagraph<'a> {
     /// What it holds.
-    pub nodes: Vec<DocNode>,
+    pub nodes: Vec<DocNode<'a>>,
 }
 
-impl DocParagraph {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocParagraph<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         children.extend(self.nodes.iter().map(DocNode::as_ref));
     }
 }
@@ -182,20 +191,20 @@ pub(crate) fn paragraph_allows(kind: DocNodeKind) -> bool {
 
 /// A block: a block tag and the section after it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DocBlock {
+pub struct DocBlock<'a> {
     /// Its tag.
-    pub block_tag: DocBlockTag,
+    pub block_tag: DocBlockTag<'a>,
     /// What follows it.
-    pub content: DocSection,
+    pub content: DocSection<'a>,
 }
 
-impl DocBlock {
+impl<'a> DocBlock<'a> {
     /// A block for `block_tag`, empty.
-    pub fn new(block_tag: DocBlockTag) -> Self {
+    pub fn new(block_tag: DocBlockTag<'a>) -> Self {
         Self { block_tag, content: DocSection::default() }
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         children.push(NodeRef::BlockTag(&self.block_tag));
         children.push(NodeRef::Section(&self.content));
     }
@@ -203,13 +212,13 @@ impl DocBlock {
 
 /// A `@param` or `@typeParam` block.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DocParamBlock {
+pub struct DocParamBlock<'a> {
     /// Its tag.
-    pub block_tag: DocBlockTag,
+    pub block_tag: DocBlockTag<'a>,
     /// The parameter's name, or empty when it was missing.
-    pub parameter_name: String,
+    pub parameter_name: Cow<'a, str>,
     /// What follows the name and hyphen.
-    pub content: DocSection,
+    pub content: DocSection<'a>,
     /// Its excerpts, when it was parsed.
     pub excerpts: ParamBlockExcerpts,
 }
@@ -231,14 +240,14 @@ pub struct ParamBlockExcerpts {
     pub unsupported_jsdoc_type_after_hyphen: Option<DocExcerpt>,
 }
 
-impl DocParamBlock {
+impl<'a> DocParamBlock<'a> {
     /// A block for `block_tag` naming `parameter_name`, empty.
-    pub fn new(block_tag: DocBlockTag, parameter_name: impl Into<String>) -> Self {
+    pub fn new(block_tag: DocBlockTag<'a>, parameter_name: impl Into<Cow<'a, str>>) -> Self {
         let parameter_name = parameter_name.into();
         Self { block_tag, parameter_name, content: DocSection::default(), excerpts: ParamBlockExcerpts::default() }
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         let e = &self.excerpts;
         children.push(NodeRef::BlockTag(&self.block_tag));
         for excerpt in [
@@ -261,18 +270,18 @@ impl DocParamBlock {
 
 /// A comment's `@param` or `@typeParam` blocks.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocParamCollection {
+pub struct DocParamCollection<'a> {
     /// The blocks, in order.
-    pub blocks: Vec<DocParamBlock>,
+    pub blocks: Vec<DocParamBlock<'a>>,
 }
 
-impl DocParamCollection {
+impl<'a> DocParamCollection<'a> {
     /// The first block for the parameter named `name`.
-    pub fn try_get_block_by_name(&self, name: &str) -> Option<&DocParamBlock> {
+    pub fn try_get_block_by_name(&self, name: &str) -> Option<&DocParamBlock<'a>> {
         self.blocks.iter().find(|block| block.parameter_name == name)
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         children.extend(self.blocks.iter().map(NodeRef::ParamBlock));
     }
 }

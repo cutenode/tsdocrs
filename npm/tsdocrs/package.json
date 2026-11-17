@@ -20,15 +20,17 @@
 		"pkg/tsdocrs.js",
 		"pkg/tsdocrs.d.ts",
 		"pkg/tsdocrs_bg.wasm",
-		"pkg/tsdocrs_bg.wasm.d.ts"
+		"pkg/tsdocrs_bg.wasm.d.ts",
+		"index.js",
+		"index.d.ts"
 	],
 	"type": "commonjs",
-	"main": "pkg/tsdocrs.js",
-	"types": "pkg/tsdocrs.d.ts",
+	"main": "index.js",
+	"types": "index.d.ts",
 	"exports": {
 		".": {
-			"types": "./pkg/tsdocrs.d.ts",
-			"default": "./pkg/tsdocrs.js"
+			"types": "./index.d.ts",
+			"default": "./index.js"
 		}
 	},
 	"devEngines": {

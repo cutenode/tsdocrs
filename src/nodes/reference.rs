@@ -1,17 +1,19 @@
 //! Declaration references, as in `{@link my-package#MyClass.(method:static)}`.
 
+use std::borrow::Cow;
+
 use super::{DocExcerpt, ExcerptKind, NodeRef, push};
 use crate::parser::{TokenSequence, string_checks};
 
 /// A reference to a declaration: a package and import path, then members.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocDeclarationReference {
+pub struct DocDeclarationReference<'a> {
     /// The package's name.
-    pub package_name: Option<String>,
+    pub package_name: Option<Cow<'a, str>>,
     /// The import path, after the package's name.
-    pub import_path: Option<String>,
+    pub import_path: Option<Cow<'a, str>>,
     /// The members, from the outermost.
-    pub member_references: Vec<DocMemberReference>,
+    pub member_references: Vec<DocMemberReference<'a>>,
     /// Its excerpts, when it was parsed.
     pub excerpts: DeclarationReferenceExcerpts,
 }
@@ -26,8 +28,8 @@ pub struct DeclarationReferenceExcerpts {
     pub spacing_after_import_hash: Option<DocExcerpt>,
 }
 
-impl DocDeclarationReference {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocDeclarationReference<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         let e = &self.excerpts;
         for excerpt in [&e.package_name, &e.import_path, &e.import_hash, &e.spacing_after_import_hash] {
             push(children, excerpt);
@@ -38,15 +40,15 @@ impl DocDeclarationReference {
 
 /// One member of a declaration reference: an identifier or a symbol, with an optional selector.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocMemberReference {
+pub struct DocMemberReference<'a> {
     /// Whether a `.` comes before it.
     pub has_dot: bool,
     /// Its identifier, unless it's a symbol.
-    pub member_identifier: Option<DocMemberIdentifier>,
+    pub member_identifier: Option<DocMemberIdentifier<'a>>,
     /// Its symbol, like `[MySymbols.example]`.
-    pub member_symbol: Option<DocMemberSymbol>,
+    pub member_symbol: Option<DocMemberSymbol<'a>>,
     /// Its selector, like `:static`.
-    pub selector: Option<DocMemberSelector>,
+    pub selector: Option<DocMemberSelector<'a>>,
     /// Its excerpts, when it was parsed.
     pub excerpts: MemberReferenceExcerpts,
 }
@@ -67,8 +69,8 @@ pub struct MemberReferenceExcerpts {
     pub spacing_after_right_parenthesis: Option<DocExcerpt>,
 }
 
-impl DocMemberReference {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocMemberReference<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         let e = &self.excerpts;
         push(children, &e.dot);
         push(children, &e.spacing_after_dot);
@@ -88,16 +90,16 @@ impl DocMemberReference {
 
 /// A member's name, quoted or not.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocMemberIdentifier {
+pub struct DocMemberIdentifier<'a> {
     /// The name, without quotes.
-    pub identifier: String,
+    pub identifier: Cow<'a, str>,
     /// Its excerpts, when it was parsed: the left quote, the name and the right quote.
     pub excerpts: [Option<DocExcerpt>; 3],
 }
 
-impl DocMemberIdentifier {
+impl<'a> DocMemberIdentifier<'a> {
     /// A member name, built by hand.
-    pub fn new(identifier: impl Into<String>) -> Self {
+    pub fn new(identifier: impl Into<Cow<'a, str>>) -> Self {
         Self { identifier: identifier.into(), excerpts: [None; 3] }
     }
 
@@ -114,22 +116,22 @@ impl DocMemberIdentifier {
         }
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         self.excerpts.iter().for_each(|excerpt| push(children, excerpt));
     }
 }
 
 /// A member named by a symbol, in square brackets.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DocMemberSymbol {
+pub struct DocMemberSymbol<'a> {
     /// The symbol's declaration.
-    pub symbol_reference: DocDeclarationReference,
+    pub symbol_reference: DocDeclarationReference<'a>,
     /// Its excerpts, when it was parsed: the `[`, the spacing after it and the `]`.
     pub excerpts: [Option<DocExcerpt>; 3],
 }
 
-impl DocMemberSymbol {
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+impl<'a> DocMemberSymbol<'a> {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         let [left, spacing, right] = &self.excerpts;
         push(children, left);
         push(children, spacing);
@@ -153,9 +155,9 @@ pub enum SelectorKind {
 
 /// A member selector, after the colon in `(method:static)`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DocMemberSelector {
+pub struct DocMemberSelector<'a> {
     /// The selector.
-    pub selector: String,
+    pub selector: Cow<'a, str>,
     /// What it is.
     pub selector_kind: SelectorKind,
     /// What's wrong with it, when its kind is [`SelectorKind::Error`].
@@ -164,19 +166,19 @@ pub struct DocMemberSelector {
     pub selector_excerpt: Option<DocExcerpt>,
 }
 
-impl DocMemberSelector {
+impl<'a> DocMemberSelector<'a> {
     /// The selector `selector`, built by hand.
-    pub fn new(selector: impl Into<String>) -> Self {
+    pub fn new(selector: impl Into<Cow<'a, str>>) -> Self {
         Self::parsed(selector.into(), None)
     }
 
-    pub(crate) fn parsed(selector: String, excerpt: Option<TokenSequence>) -> Self {
+    pub(crate) fn parsed(selector: Cow<'a, str>, excerpt: Option<TokenSequence>) -> Self {
         let (selector_kind, error_message) = classify(&selector);
         let selector_excerpt = DocExcerpt::of(ExcerptKind::MemberSelector, excerpt);
         Self { selector, selector_kind, error_message, selector_excerpt }
     }
 
-    pub(super) fn push_children<'a>(&'a self, children: &mut Vec<NodeRef<'a>>) {
+    pub(super) fn push_children<'r>(&'r self, children: &mut Vec<NodeRef<'r>>) {
         push(children, &self.selector_excerpt);
     }
 }

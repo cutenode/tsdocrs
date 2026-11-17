@@ -70,7 +70,7 @@ fn snapshot(context: &ParserContext, node: NodeRef) -> Value {
             item.insert("errorMessage".into(), json!(error.error_message));
             item.insert("errorLocation".into(), json!(context.text(error.error_location)));
             if let Some(before) = error.error_location.start_index.checked_sub(1) {
-                item.insert("errorLocationPrecedingToken".into(), json!(context.tokens[before].text(&context.buffer)));
+                item.insert("errorLocationPrecedingToken".into(), json!(context.tokens[before].text(context.buffer)));
             }
         }
         _ => {}
