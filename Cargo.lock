@@ -1075,7 +1075,7 @@ dependencies = [
 
 [[package]]
 name = "tsdocrs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "automod",
  "criterion",
