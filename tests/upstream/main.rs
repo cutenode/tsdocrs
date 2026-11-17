@@ -3,6 +3,10 @@
 //! and a port in ports/ checks the rest of its expectations. A test with an expectation nothing
 //! here can check fails, and so does one that fails while allowlist.json says it's expected to, if
 //! it passes: the allowlist only holds tests that fail.
+//!
+//! With UPSTREAM_DIR set, it runs the suite tools/upstream/vendor.sh wrote there instead of the one
+//! checked in, against the same ports and allowlist: `npm run bench -- --live` runs TSDoc's
+//! newest tests that way.
 
 mod harness;
 mod shapes;
@@ -12,6 +16,7 @@ mod ports {
 }
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::path::{Path, PathBuf};
 
 use harness::{Event, Port, Suite, Test};
 use libtest_mimic::{Arguments, Failed, Trial};
@@ -28,7 +33,13 @@ struct Allowed {
 }
 
 fn main() {
-    let suite: Suite = serde_json::from_str(include_str!("cases.json")).expect("cases.json");
+    let dir = std::env::var_os("UPSTREAM_DIR")
+        .map_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/upstream"), PathBuf::from);
+    let cases = dir.join("cases.json");
+    let suite: Suite = serde_json::from_str(
+        &std::fs::read_to_string(&cases).unwrap_or_else(|error| panic!("{}: {error}", cases.display())),
+    )
+    .unwrap_or_else(|error| panic!("{}: {error}", cases.display()));
     let allowed: Vec<Allowed> = serde_json::from_str(include_str!("allowlist.json")).expect("allowlist.json");
     let trials = suite.files.into_iter().flat_map(|file| {
         let path = file.path;

@@ -1,13 +1,16 @@
 // `npm run bench`: tsdocrs against @microsoft/tsdoc on bench/corpus/, written to
 // target/bench/report.md and report.json. The Rust side is criterion (benches/parse.rs); the Node
 // side, tsdocrs's npm package and @microsoft/tsdoc in the same process, is tinybench. `--quick`
-// makes every run short, to check the harness rather than to measure.
-import { execFileSync } from "node:child_process";
+// makes every run short, to check the harness rather than to measure. The report also says how
+// tsdocrs does on TSDoc's own tests (tests/upstream): the suite pinned there, or with `--live`,
+// microsoft/tsdoc's default branch as it is now.
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { delimiter } from "node:path";
 import { fileURLToPath } from "node:url";
 import { TSDocParser } from "@microsoft/tsdoc";
+import { accuracy, outcomes } from "./lib/accuracy.mjs";
 import { load } from "./lib/corpus.mjs";
 import { samples } from "./lib/criterion.mjs";
 import { environment, output } from "./lib/environment.mjs";
@@ -17,8 +20,54 @@ import { isPinned, wasmBindgenPin } from "./lib/tools.mjs";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const quick = process.argv.includes("--quick");
+const live = process.argv.includes("--live");
 const exec = (command, args, env = process.env) =>
 	execFileSync(command, args, { cwd: root, stdio: "inherit", env });
+
+// The live suite goes to target/upstream, which isn't checked in: re-vendoring tests/upstream is
+// upstream.yml's job, as a pull request. If vendor.sh fails, as when TSDoc's own suite fails at
+// that commit, the report says so and the benchmarks still run. It runs first, so a harness that
+// doesn't build stops the run before the benchmarks take their time.
+const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
+const pinned = readJson(`${root}tests/upstream/manifest.json`);
+function measureAccuracy() {
+	let dir = `${root}tests/upstream`;
+	if (live) {
+		const tsdoc = "https://github.com/microsoft/tsdoc.git";
+		const head = execFileSync("git", ["ls-remote", tsdoc, "HEAD"], { encoding: "utf8" });
+		const commit = head.split("\t")[0];
+		if (commit !== pinned.commit) {
+			dir = `${root}target/upstream`;
+			try {
+				exec("tools/upstream/vendor.sh", [commit, dir]);
+			} catch {
+				return { commit, error: "tools/upstream/vendor.sh failed, with its output in the log." };
+			}
+		}
+	}
+	// libtest's JSON on stdout. It exits 101 when a test fails, which outcomes() reads; a run that
+	// didn't finish, as when it didn't build, throws there.
+	const harness = spawnSync(
+		"cargo",
+		["test", "--locked", "--test", "upstream", "--", "--format", "json"],
+		{
+			cwd: root,
+			env: { ...process.env, UPSTREAM_DIR: dir },
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "inherit"],
+			maxBuffer: 2 ** 26,
+		},
+	);
+	return accuracy({
+		suite: readJson(`${dir}/cases.json`),
+		manifest: readJson(`${dir}/manifest.json`),
+		pinned,
+		allowlist: readJson(`${root}tests/upstream/allowlist.json`),
+		outcomes: outcomes(harness.stdout),
+	});
+}
+
+const upstream = measureAccuracy();
 
 // The npm package, built with the wasm-bindgen CLI it pins, installed under target/ if need be.
 const tools = `${root}target/bench-tools`;
@@ -64,7 +113,12 @@ for (const corpus of corpora) {
 	}
 }
 
-const report = build({ corpora, runs, environment: environment(root) });
+const report = build({
+	corpora,
+	runs,
+	environment: environment(root),
+	accuracy: upstream,
+});
 mkdirSync(`${root}target/bench`, { recursive: true });
 writeFileSync(`${root}target/bench/report.json`, JSON.stringify(report, null, "\t") + "\n");
 writeFileSync(`${root}target/bench/report.md`, markdown(report));

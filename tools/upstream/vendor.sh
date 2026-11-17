@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# Vendors @microsoft/tsdoc's own Jest suite at COMMIT: runs every tsdoc/src/**/__tests__/*.test.ts
-# with tools/upstream/recorder.cjs watching, and writes what each test did to
-# tests/upstream/cases.json (with the snapshots' checked-in text), the counts to
-# tests/upstream/manifest.json, and upstream's test files as they are to tests/upstream/suite/.
-# Fails with Jest's output if upstream's suite fails at COMMIT.
-# Usage: tools/upstream/vendor.sh [COMMIT]   (default: the commit in tests/upstream/manifest.json)
+# Vendors @microsoft/tsdoc's own Jest suite at COMMIT into OUT: runs every
+# tsdoc/src/**/__tests__/*.test.ts with tools/upstream/recorder.cjs watching, and writes what each
+# test did to OUT/cases.json (with the snapshots' checked-in text), the counts to
+# OUT/manifest.json, and upstream's test files as they are to OUT/suite/. The harness reads another
+# OUT than tests/upstream through UPSTREAM_DIR, which is how `npm run bench -- --upstream COMMIT`
+# runs it on a suite that isn't checked in. Fails with Jest's output if upstream's suite fails at
+# COMMIT.
+# Usage: tools/upstream/vendor.sh [COMMIT [OUT]]
+#   COMMIT defaults to the commit in tests/upstream/manifest.json, OUT to tests/upstream.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 commit=${1:-$(node -p 'require("./tests/upstream/manifest.json").commit')}
+out=${2:-tests/upstream}
 if [[ ! $commit =~ ^[0-9a-f]{40}$ ]]; then
 	echo "vendor.sh: COMMIT must be a full sha, got '$commit'" >&2
 	exit 1
@@ -38,11 +42,12 @@ if ! UPSTREAM_CHECKOUT=$checkout UPSTREAM_DEPS=$work/deps UPSTREAM_RECORDS=$work
 	exit 1
 fi
 
-node tools/upstream/write.mjs "$checkout" "$work/records" "$work/results.json" "$commit" "$date"
+mkdir -p "$out"
+node tools/upstream/write.mjs "$checkout" "$work/records" "$work/results.json" "$commit" "$date" "$out"
 
 # From git's objects rather than the checkout, which upstream's .gitattributes gives CRLF .ts files.
-rm -rf tests/upstream/suite
+rm -rf "$out/suite"
 git -C "$checkout" ls-tree -r --name-only HEAD tsdoc/src | grep '/__tests__/' | while read -r file; do
-	mkdir -p "tests/upstream/suite/$(dirname "$file")"
-	git -C "$checkout" cat-file blob "HEAD:$file" >"tests/upstream/suite/$file"
+	mkdir -p "$out/suite/$(dirname "$file")"
+	git -C "$checkout" cat-file blob "HEAD:$file" >"$out/suite/$file"
 done

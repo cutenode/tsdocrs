@@ -1,5 +1,6 @@
-// The report: each run's statistics and throughput, the speedups over @microsoft/tsdoc, and what
-// it ran on, as JSON and as Markdown.
+// The report: each run's statistics and throughput, the speedups over @microsoft/tsdoc, what it
+// ran on, and how tsdocrs does on TSDoc's own tests, as JSON and as Markdown.
+import { accuracyMarkdown } from "./accuracy.mjs";
 import { summarize, throughput } from "./stats.mjs";
 
 /** The implementation the others are compared with. */
@@ -9,9 +10,10 @@ const OPERATIONS = { parse: "parse", emit: "parse + emit" };
 
 /**
  * The report of `runs` ({ corpus, implementation, operation, samples }) over `corpora`
- * ({ name, comments, bytes }), with `environment` (versions and the machine) as given.
+ * ({ name, comments, bytes }), with `environment` (versions and the machine) and `accuracy`
+ * (accuracy.mjs's) as given.
  */
-export function build({ corpora, runs, environment }) {
+export function build({ corpora, runs, environment, accuracy }) {
 	const results = runs.map(({ corpus, implementation, operation, samples }) => {
 		const { comments, bytes } = corpora.find((c) => c.name === corpus);
 		const stats = summarize(samples);
@@ -37,16 +39,16 @@ export function build({ corpora, runs, environment }) {
 		comments: comments.length,
 		bytes,
 	}));
-	return { environment, corpora: sizes, results };
+	return { environment, corpora: sizes, results, accuracy };
 }
 
 const ms = (ns) => (ns / 1e6).toFixed(3);
 const fixed = (n, digits) =>
 	n.toLocaleString("en-US", { maximumFractionDigits: digits, minimumFractionDigits: digits });
 
-/** `report` as Markdown: what it ran on, then a table for each corpus. */
+/** `report` as Markdown: what it ran on, a table for each corpus, then the accuracy. */
 export function markdown(report) {
-	const { environment, corpora, results } = report;
+	const { environment, corpora, results, accuracy } = report;
 	const lines = ["# tsdocrs benchmarks", "", "| | |", "| --- | --- |"];
 	for (const [key, value] of Object.entries(environment)) {
 		lines.push(`| ${key} | ${value} |`);
@@ -69,6 +71,7 @@ export function markdown(report) {
 	lines.push(
 		"",
 		`Each sample is one pass over the whole corpus. Outliers past Tukey's fences (1.5 times the interquartile range) are left out of the statistics; ± sd is the standard deviation as a share of the mean. The speedup is ${BASELINE}'s mean time over the implementation's.`,
+		...accuracyMarkdown(accuracy),
 	);
 	return lines.join("\n") + "\n";
 }

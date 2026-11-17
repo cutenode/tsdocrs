@@ -1,12 +1,13 @@
 name: Benchmarks
 
-# tsdocrs against @microsoft/tsdoc (`npm run bench`), weekly and on demand: too slow for every
-# pull request, and a shared runner's timings are noisy enough that a trend across weeks says more
-# than one run. The report is the job summary and the bench-report artifact.
+# tsdocrs against @microsoft/tsdoc (`npm run bench`), nightly and on demand: too slow for every
+# pull request, and a shared runner's timings are noisy enough that the trend across nights says
+# more than one run. The report is the job summary and the bench-report artifact. It also says how
+# tsdocrs does on TSDoc's own tests at microsoft/tsdoc's default branch as it is that night.
 on:
   workflow_dispatch:
   schedule:
-    - cron: "41 4 * * 0"
+    - cron: "41 4 * * *"
 
 permissions:
   contents: read
@@ -44,9 +45,19 @@ jobs:
       - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: wasm-bindgen@${{ steps.wasm-bindgen.outputs.version }}
-      - run: npm run bench
+      # --live vendors TSDoc's suite at microsoft/tsdoc's default branch into target/upstream
+      # (tools/upstream/vendor.sh, which runs upstream's Jest suite and the npm packages it installs:
+      # this job has no secrets and a read-only token) and runs the harness on it.
+      - run: npm run bench -- --live
+      # The report, and a warning on the run when TSDoc's tests fail or didn't run. They don't fail
+      # the job: until upstream.yml's pull request brings the new suite in and tsdocrs catches up,
+      # every night would be red. The summary lists each failing test.
       - if: ${{ !cancelled() && hashFiles('target/bench/report.md') != '' }}
-        run: cat target/bench/report.md >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          cat target/bench/report.md >> "$GITHUB_STEP_SUMMARY"
+          jq -r '.accuracy as $a | ($a.error // ($a.failures | length | select(. > 0) |
+            "\(.) upstream tests fail at microsoft/tsdoc@\($a.commit[:7]), listed in the job summary")) //
+            empty | "::warning title=Accuracy::\(.)"' target/bench/report.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
