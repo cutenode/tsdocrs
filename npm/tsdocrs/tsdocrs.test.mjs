@@ -1,7 +1,7 @@
 // The npm package against @microsoft/tsdoc, in the same Node process: for each comment of
 // tests/fixtures/corpus.json, the same lines, messages (ids, texts and UTF-16 ranges) and tree,
-// or the same error, from parse() and, but for the lines and tree, from check(). Run
-// tools/build-npm.sh first.
+// or the same error, from parse() and, but for the lines and tree, from check(). parseTree() and
+// parseMany() give what parse() does. Run tools/build-npm.sh first.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -10,7 +10,7 @@ import { DocExcerpt, TSDocConfiguration, TSDocParser } from "@microsoft/tsdoc";
 import { TSDocConfigFile } from "@microsoft/tsdoc-config";
 
 const require = createRequire(import.meta.url);
-const tsdocrs = require("./pkg/tsdocrs.js");
+const tsdocrs = require("./index.js");
 const corpus = JSON.parse(
 	readFileSync(new URL("../../tests/fixtures/corpus.json", import.meta.url), "utf8"),
 );
@@ -147,4 +147,70 @@ test("emit writes each comment out as @microsoft/tsdoc does", () => {
 		}
 		assert.equal(tsdocrs.emit(comment), expected, comment);
 	}
+});
+
+/** parse()'s tree under `node` with every excerpt's `content`, as a lazy tree's `toJSON()` has it. */
+function withContent(node, comment) {
+	const item = { ...node };
+	if (item.excerptKind !== undefined) {
+		item.content ??= comment.slice(item.pos, item.end);
+	}
+	if (item.nodes) {
+		item.nodes = item.nodes.map((child) => withContent(child, comment));
+	}
+	return item;
+}
+
+/** What parse() gives for `entry`, every excerpt's `content` filled in, or its error. */
+function parsed({ comment, config }) {
+	try {
+		const result = tsdocrs.parse(comment, config);
+		return { ...result, docComment: withContent(result.docComment, comment) };
+	} catch (error) {
+		return { throws: error.message };
+	}
+}
+
+/** A lazy result as plain objects. */
+function plain(result) {
+	return result instanceof Error
+		? { throws: result.message }
+		: { ...result, docComment: result.docComment.toJSON() };
+}
+
+for (const entry of corpus) {
+	test(`parseTree ${JSON.stringify(entry.comment)}`, () => {
+		let tree;
+		try {
+			tree = tsdocrs.parseTree(entry.comment, entry.config);
+		} catch (error) {
+			tree = error;
+		}
+		assert.deepEqual(plain(tree), parsed(entry));
+	});
+}
+
+test("a lazy node's properties are parse()'s fields", () => {
+	const compare = (lazy, json) => {
+		for (const [key, value] of Object.entries(json)) {
+			if (key !== "nodes") {
+				assert.equal(lazy[key], value, key);
+			}
+		}
+		assert.equal(lazy.nodes?.length, json.nodes?.length);
+		json.nodes?.forEach((child, at) => compare(lazy.nodes[at], child));
+	};
+	for (const entry of corpus) {
+		const json = parsed(entry);
+		if (json.throws === undefined) {
+			compare(tsdocrs.parseTree(entry.comment, entry.config).docComment, json.docComment);
+		}
+	}
+});
+
+test("parseMany gives each comment's parse, and an error in place of one that throws", () => {
+	const entries = corpus.filter((entry) => !entry.config);
+	const many = tsdocrs.parseMany(entries.map((entry) => entry.comment));
+	assert.deepEqual(many.map(plain), entries.map(parsed));
+	assert.ok(many.some((result) => result instanceof Error));
 });

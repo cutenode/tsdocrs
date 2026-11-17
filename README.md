@@ -32,6 +32,8 @@ const { messages, docComment } = parse("/** @bogus */", { tagDefinitions: [{ tag
 
 `parse(text, settings?)` takes a tsdoc.json's settings without `extends`, and gives the lines, the messages and the tree as plain objects, with offsets in UTF-16 code units as JavaScript strings index. An excerpt on one line leaves its text to `text.slice(pos, end)`; one across lines has it as `content`. TypeScript types ship with it.
 
+`parseTree(text, settings?)` gives what `parse` does, with a tree that reads its nodes from the parse's buffers as they're used, and `parseMany(texts, settings?)` parses a list of comments in one call that way, for a caller that reads less than the whole tree or parses many comments.
+
 `check(text, settings?)` gives the same messages and each tag the parser read, as `{ tagName, inline, pos, end }`, without the tree. For a linter that only reports messages, it's the cheaper call.
 
 It's built with [wasm-bindgen](https://github.com/wasm-bindgen/wasm-bindgen), which is actively maintained, and runs as one WebAssembly file on every platform Node runs on. An editor extension or a linter plugin gets no native binary per platform to download, and a parse is one call with a string in and an object out.

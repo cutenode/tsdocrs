@@ -1,6 +1,7 @@
 //! The tsdocrs npm package: [`parse`] reads a TSDoc comment into the tree and messages
 //! `@microsoft/tsdoc` would, as plain objects, with offsets in UTF-16 code units as JavaScript
-//! strings index. [`check`] gives the messages and tags alone.
+//! strings index. [`check`] gives the messages and tags alone, and `parseTrees` (in `tree`) many
+//! comments' trees as numbers, which index.js reads lazily.
 
 use serde::{
     Serialize, Serializer,
@@ -8,9 +9,14 @@ use serde::{
 };
 use tsdocrs::{
     ParseError, ParserContext, TSDocConfigFile, TSDocConfiguration, TSDocParser,
-    nodes::{NodeRef, SelectorKind},
+    nodes::NodeRef,
     parser::{TextRange, TokenKind},
 };
+
+use crate::fields::Value;
+
+mod fields;
+mod tree;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -92,6 +98,17 @@ export interface CheckResult {
   messages: ParserMessage[];
   /** Every tag the parser read, in order. */
   tags: ParsedTag[];
+}
+
+/**
+ * `parseTrees`'s comments as numbers, which `parseTree` and `parseMany` read lazily. Each comment
+ * is its lines, messages and root node, or the error `@microsoft/tsdoc` throws on it.
+ */
+export interface Trees {
+  comments: ({ lines: string[]; messages: ParserMessage[]; root: number } | { error: string })[];
+  strings: string[];
+  nodes: Uint32Array;
+  fields: Uint32Array;
 }
 
 /** What a parse found. */
@@ -311,84 +328,28 @@ impl Serialize for Node<'_> {
         let Self { context, utf16, node } = *self;
         let mut map = serializer.serialize_map(None)?;
         map.serialize_entry("kind", node.kind().as_str())?;
-        match node {
-            NodeRef::Excerpt(excerpt) => {
-                let (pos, end) = utf16.range(excerpt.content.containing_text_range(&context.tokens));
-                map.serialize_entry("excerptKind", excerpt.excerpt_kind.as_str())?;
-                // Most excerpts are on one line, where JavaScript can slice the text itself, so only
-                // the others carry it.
-                let tokens = excerpt.content.tokens(&context.tokens);
-                if tokens.iter().any(|token| token.kind == TokenKind::Newline) {
-                    map.serialize_entry("content", &context.text(excerpt.content))?;
-                }
-                map.serialize_entry("pos", &pos)?;
-                map.serialize_entry("end", &end)?;
+        if let NodeRef::Excerpt(excerpt) = node {
+            let (pos, end) = utf16.range(excerpt.content.containing_text_range(&context.tokens));
+            map.serialize_entry("excerptKind", excerpt.excerpt_kind.as_str())?;
+            // Most excerpts are on one line, where JavaScript can slice the text itself, so only the
+            // others carry it.
+            let tokens = excerpt.content.tokens(&context.tokens);
+            if tokens.iter().any(|token| token.kind == TokenKind::Newline) {
+                map.serialize_entry("content", &context.text(excerpt.content))?;
             }
-            NodeRef::BlockTag(tag) => map.serialize_entry("tagName", &tag.tag_name)?,
-            NodeRef::PlainText(text) => map.serialize_entry("text", &text.text)?,
-            NodeRef::ErrorText(error) => {
-                map.serialize_entry("text", &error.text)?;
-                map.serialize_entry("messageId", error.message_id.as_str())?;
-                map.serialize_entry("errorMessage", &error.error_message)?;
-            }
-            NodeRef::EscapedText(escaped) => {
-                map.serialize_entry("encodedText", &escaped.encoded_text)?;
-                map.serialize_entry("decodedText", &escaped.decoded_text)?;
-            }
-            NodeRef::CodeSpan(code) => map.serialize_entry("code", &code.code)?,
-            NodeRef::FencedCode(code) => {
-                map.serialize_entry("language", &code.language)?;
-                map.serialize_entry("code", &code.code)?;
-            }
-            NodeRef::HtmlStartTag(tag) => {
-                map.serialize_entry("name", &tag.name)?;
-                map.serialize_entry("selfClosingTag", &tag.self_closing_tag)?;
-            }
-            NodeRef::HtmlEndTag(tag) => map.serialize_entry("name", &tag.name)?,
-            NodeRef::HtmlAttribute(attribute) => {
-                map.serialize_entry("name", &attribute.name)?;
-                map.serialize_entry("value", &attribute.value)?;
-            }
-            NodeRef::InlineTag(tag) => {
-                map.serialize_entry("tagName", &tag.base.tag_name)?;
-                map.serialize_entry("tagContent", &tag.tag_content)?;
-            }
-            NodeRef::LinkTag(link) => {
-                map.serialize_entry("tagName", &link.base.tag_name)?;
-                if let Some(url) = &link.url_destination {
-                    map.serialize_entry("urlDestination", url)?;
-                }
-                if let Some(text) = &link.link_text {
-                    map.serialize_entry("linkText", text)?;
-                }
-            }
-            NodeRef::InheritDocTag(tag) => map.serialize_entry("tagName", &tag.base.tag_name)?,
-            NodeRef::ParamBlock(block) => map.serialize_entry("parameterName", &block.parameter_name)?,
-            NodeRef::DeclarationReference(reference) => {
-                if let Some(name) = &reference.package_name {
-                    map.serialize_entry("packageName", name)?;
-                }
-                if let Some(path) = &reference.import_path {
-                    map.serialize_entry("importPath", path)?;
-                }
-            }
-            NodeRef::MemberIdentifier(identifier) => {
-                map.serialize_entry("identifier", &identifier.identifier)?;
-                map.serialize_entry("hasQuotes", &identifier.has_quotes())?;
-            }
-            NodeRef::MemberReference(member) => map.serialize_entry("hasDot", &member.has_dot)?,
-            NodeRef::MemberSelector(selector) => {
-                map.serialize_entry("selector", &selector.selector)?;
-                let kind = match selector.selector_kind {
-                    SelectorKind::Error => "error",
-                    SelectorKind::System => "system",
-                    SelectorKind::Index => "index",
-                    SelectorKind::Label => "label",
-                };
-                map.serialize_entry("selectorKind", kind)?;
-            }
-            _ => {}
+            map.serialize_entry("pos", &pos)?;
+            map.serialize_entry("end", &end)?;
         }
+        let mut written = Ok(());
+        fields::for_each(node, |name, value| {
+            if written.is_ok() {
+                written = match value {
+                    Value::Text(text) => map.serialize_entry(name, text),
+                    Value::Bool(value) => map.serialize_entry(name, &value),
+                };
+            }
+        });
+        written?;
         let nodes = node.child_nodes();
         if !nodes.is_empty() {
             map.serialize_entry("nodes", &Nodes { context, utf16, nodes })?;
