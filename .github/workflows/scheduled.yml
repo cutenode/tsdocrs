@@ -115,8 +115,10 @@ jobs:
           rustup toolchain install nightly --profile minimal
           cargo install --locked cargo-fuzz@0.13.2
       # It starts from the corpus's comments (fuzz/seeds/parser), and writes what it finds to
-      # fuzz/corpus.
-      - run: cargo +nightly fuzz run "$TARGET" "fuzz/corpus/$TARGET" fuzz/seeds/parser -- -max_total_time=300
+      # fuzz/corpus, which git ignores and libFuzzer won't create.
+      - run: |
+          mkdir -p "fuzz/corpus/$TARGET"
+          cargo +nightly fuzz run "$TARGET" "fuzz/corpus/$TARGET" fuzz/seeds/parser -- -max_total_time=300
         env:
           TARGET: ${{ matrix.target }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

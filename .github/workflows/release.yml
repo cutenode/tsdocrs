@@ -1,0 +1,202 @@
+name: Release
+
+# uppt (https://github.com/danielroe/uppt) runs releases. Each push to main opens or updates a draft
+# release PR from the conventional commits since the last tag, bumping npm/tsdocrs/package.json, and
+# cargo-pr bumps the crate on it to match. Merging the PR tags it and dispatches this workflow on the
+# tag, which builds the npm package, stages it on npm for approval, and publishes the crate. Both
+# registries use trusted publishing, so there are no tokens here. tools/bootstrap-publishing.sh sets
+# that up.
+on:
+  push:
+    # release/v* picks up hand edits to an open release PR
+    branches: [main, "release/v*"]
+  pull_request:
+    types: [closed]
+    branches: [main]
+  # merged release PRs, publish reruns, and prereleases all arrive here
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Cut a prerelease instead of a normal release, e.g. `beta`, `rc`, or `0`
+        required: false
+        default: ""
+
+permissions: {}
+
+# Back-to-back pushes to main would otherwise race their pr and cargo-pr jobs on the release PR's
+# branch. Runs for the same event and ref wait their turn, the newest replacing any still waiting.
+concurrency:
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # open or update a draft release PR from conventional commits
+  pr:
+    if: |
+      !github.event.repository.fork
+      && (
+        (
+          github.event_name == 'push'
+          && (
+            github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+            || startsWith(github.ref, 'refs/heads/release/v')
+          )
+        ) || (
+          github.event_name == 'workflow_dispatch'
+          && !startsWith(github.ref, 'refs/tags/')
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: danielroe/uppt/pr@6c1a9b480b0f02a3f535dedaf1a113f590aa56f2 # v0.6.12
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: ${{ inputs.prerelease }}
+          title: "chore(release): v{version}"
+          packages: npm/tsdocrs
+
+  # uppt/pr only bumps package.json, so this brings Cargo.toml and the lockfiles along on the
+  # release PR
+  cargo-pr:
+    needs: pr
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - run: rustup toolchain install
+      - run: tools/release-pr-cargo.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # release PR merged: tag it, cut a GitHub release, dispatch the publish run
+  release:
+    if: |
+      github.event_name == 'pull_request'
+      && github.event.pull_request.merged == true
+      && startsWith(github.event.pull_request.head.ref, 'release/v')
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && !github.event.repository.fork
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: release-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: danielroe/uppt/release@6c1a9b480b0f02a3f535dedaf1a113f590aa56f2 # v0.6.12
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          packages: npm/tsdocrs
+
+  # the npm tarball: the wasm build (tools/build-npm.sh), packed
+  pack:
+    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: pack-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    outputs:
+      files: ${{ steps.pack.outputs.files }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # package.json's devEngines wants a newer npm than the runners' own Node has.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      # rust-toolchain.toml brings wasm32-unknown-unknown.
+      - run: rustup toolchain install
+      # wasm-bindgen-cli has to be the version of the wasm-bindgen crate npm/tsdocrs pins, as in
+      # ci.yml's npm job.
+      - id: wasm-bindgen
+        run: echo "version=$(sed -n 's/^wasm-bindgen = "=\(.*\)"$/\1/p' npm/tsdocrs/Cargo.toml)" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: wasm-bindgen@${{ steps.wasm-bindgen.outputs.version }}
+      - run: tools/build-npm.sh
+      # The package has no dependencies to install.
+      - id: pack
+        uses: danielroe/uppt/pack@6c1a9b480b0f02a3f535dedaf1a113f590aa56f2 # v0.6.12
+        with:
+          checkout: false
+          install: false
+          packages: npm/tsdocrs
+
+  # stage the tarball on npm via OIDC, with provenance. It goes live once approved on npmjs.com or
+  # with `npm stage approve`.
+  publish:
+    if: needs.pack.outputs.files != '[]'
+    needs: pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: publish-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+    environment: npm
+    steps:
+      - uses: danielroe/uppt/publish@6c1a9b480b0f02a3f535dedaf1a113f590aa56f2 # v0.6.12
+        with:
+          files: ${{ needs.pack.outputs.files }}
+
+  # publish the crate via OIDC, alongside publish. It needs pack so that a tag whose npm package
+  # doesn't build publishes nowhere.
+  cargo-publish:
+    needs: pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: cargo-publish-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - id: version
+        name: Check the tag is Cargo.toml's version
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          if [[ $GITHUB_REF_NAME != "v$version" ]]; then
+            echo "::error::$GITHUB_REF_NAME doesn't match Cargo.toml's version, $version"
+            exit 1
+          fi
+          # crates.io asks API clients for a User-Agent that says who they are. A version that's
+          # already there is a rerun after a failure elsewhere.
+          if curl -sf -A "tsdocrs release (https://github.com/cutenode/tsdocrs)" "https://crates.io/api/v1/crates/tsdocrs/$version" >/dev/null; then
+            echo "tsdocrs@$version is already on crates.io"
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          fi
+      - id: auth
+        if: steps.version.outputs.published != 'true'
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+      - if: steps.version.outputs.published != 'true'
+        run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
