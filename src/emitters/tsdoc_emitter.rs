@@ -24,28 +24,28 @@ struct TSDocEmitter {
 
 const EOL: &str = "\n";
 
-impl DocComment {
+impl DocComment<'_> {
     /// It as a `/** */` comment.
     pub fn emit_as_tsdoc(&self) -> String {
         TSDocEmitter::render(NodeRef::Comment(self), true)
     }
 }
 
-impl DocDeclarationReference {
+impl DocDeclarationReference<'_> {
     /// It as TSDoc writes a declaration reference.
     pub fn emit_as_tsdoc(&self) -> String {
         TSDocEmitter::render(NodeRef::DeclarationReference(self), false)
     }
 }
 
-impl DocHtmlStartTag {
+impl DocHtmlStartTag<'_> {
     /// It as HTML.
     pub fn emit_as_html(&self) -> String {
         TSDocEmitter::render(NodeRef::HtmlStartTag(self), false)
     }
 }
 
-impl DocHtmlEndTag {
+impl DocHtmlEndTag<'_> {
     /// It as HTML.
     pub fn emit_as_html(&self) -> String {
         TSDocEmitter::render(NodeRef::HtmlEndTag(self), false)

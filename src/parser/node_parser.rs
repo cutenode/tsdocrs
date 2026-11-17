@@ -2,6 +2,8 @@
 //! tree. Each construct is read the way that parser reads it, so a mistake becomes the same
 //! error text and message, and the text after it reads the same.
 
+use std::borrow::Cow;
+
 use super::{
     ParseError, ParsedTag, ParserContext, ParserMessage, TSDocMessageId as Id, TextRange, Token, TokenKind,
     TokenSequence, string_checks, text_range::Locator, token_reader::TokenReader, tokenizer,
@@ -43,8 +45,8 @@ enum Target {
 }
 
 /// What an inline tag's opening, name, spacing, content and closing were read as.
-struct InlineTagParts {
-    tag_name: String,
+struct InlineTagParts<'a> {
+    tag_name: &'a str,
     tag_name_with_upper_case: String,
     opening_delimiter: TokenSequence,
     tag_name_excerpt: TokenSequence,
@@ -54,7 +56,7 @@ struct InlineTagParts {
 }
 
 /// Parses `context`'s tokens into its comment, logging what's wrong.
-pub(super) fn parse(context: &mut ParserContext, configuration: &TSDocConfiguration) -> Result<()> {
+pub(super) fn parse(context: &mut ParserContext<'_>, configuration: &TSDocConfiguration) -> Result<()> {
     let ParserContext { buffer, tokens, doc_comment, log, comment_range, tags, .. } = context;
     let mut parser = NodeParser {
         buffer,
@@ -70,13 +72,14 @@ pub(super) fn parse(context: &mut ParserContext, configuration: &TSDocConfigurat
     parser.parse()
 }
 
-struct NodeParser<'a> {
+/// The parser, reading text that lives for `'a` through borrows of the context for `'p`.
+struct NodeParser<'p, 'a> {
     buffer: &'a str,
-    tokens: &'a [Token],
-    configuration: &'a TSDocConfiguration,
-    log: &'a mut Vec<ParserMessage>,
-    tags: &'a mut Vec<ParsedTag>,
-    doc_comment: &'a mut DocComment,
+    tokens: &'p [Token],
+    configuration: &'p TSDocConfiguration,
+    log: &'p mut Vec<ParserMessage>,
+    tags: &'p mut Vec<ParsedTag<'a>>,
+    doc_comment: &'p mut DocComment<'a>,
     comment_range: TextRange,
     target: Target,
     /// Where its messages are, for their texts.
@@ -88,7 +91,7 @@ fn excerpt(kind: Kind, content: Option<TokenSequence>) -> Option<DocExcerpt> {
     DocExcerpt::of(kind, content)
 }
 
-impl<'a> NodeParser<'a> {
+impl<'p, 'a> NodeParser<'p, 'a> {
     fn parse(&mut self) -> Result<()> {
         let mut reader = TokenReader::new(self.tokens, None);
         loop {
@@ -201,8 +204,19 @@ impl<'a> NodeParser<'a> {
         }
     }
 
-    fn text(&self, sequence: TokenSequence) -> String {
+    fn text(&self, sequence: TokenSequence) -> Cow<'a, str> {
         sequence.text(self.buffer, self.tokens)
+    }
+
+    /// Reads tokens while `continues` holds of their kind, and gives the text of `start`, what's
+    /// been read already, through the last of them, borrowed: tokens on a line sit next to each
+    /// other.
+    fn read_while(&self, reader: &mut TokenReader, start: TextRange, continues: impl Fn(TokenKind) -> bool) -> &'a str {
+        let mut end = start.end;
+        while continues(reader.peek_token_kind()) {
+            end = reader.read_token().range().end;
+        }
+        &self.buffer[start.pos..end]
     }
 
     fn log_sequence(&mut self, id: Id, text: String, sequence: TokenSequence) {
@@ -217,11 +231,16 @@ impl<'a> NodeParser<'a> {
     fn validate_tag_definition(
         &mut self,
         definition: Option<&TSDocTagDefinition>,
-        tag_name: &str,
+        tag_name: Cow<'a, str>,
         expecting_inline_tag: bool,
         sequence: TokenSequence,
     ) {
-        self.tags.push(ParsedTag { tag_name: tag_name.into(), inline: expecting_inline_tag, token_sequence: sequence });
+        // The parser's tag names are borrowed from the text, so the clone copies no text.
+        self.tags.push(ParsedTag {
+            tag_name: tag_name.clone(),
+            inline: expecting_inline_tag,
+            token_sequence: sequence,
+        });
         let Some(definition) = definition else {
             if !self.configuration.validation.ignore_undefined_tags {
                 let text = format!("The TSDoc tag \"{tag_name}\" is not defined in this configuration");
@@ -256,7 +275,7 @@ impl<'a> NodeParser<'a> {
         }
     }
 
-    fn section(&mut self) -> &mut DocSection {
+    fn section(&mut self) -> &mut DocSection<'a> {
         let comment = &mut *self.doc_comment;
         let block = match self.target {
             Target::Summary => return &mut comment.summary_section,
@@ -272,7 +291,7 @@ impl<'a> NodeParser<'a> {
         &mut block.expect("the target is a block the comment has").content
     }
 
-    fn push_node(&mut self, node: DocNode) {
+    fn push_node(&mut self, node: DocNode<'a>) {
         let section = self.section();
         if paragraph_allows(node.kind()) {
             section.append_node_in_paragraph(node);
@@ -292,7 +311,7 @@ impl<'a> NodeParser<'a> {
         let configuration = self.configuration;
         let definition = configuration.try_get_tag_definition_with_upper_case(&tag.tag_name_with_upper_case);
         let sequence = tag.token_sequence().unwrap_or_default();
-        self.validate_tag_definition(definition, &tag.tag_name, false, sequence);
+        self.validate_tag_definition(definition, tag.tag_name.clone(), false, sequence);
         match definition.map(|definition| definition.syntax_kind) {
             Some(TSDocTagSyntaxKind::BlockTag) => {
                 let comment = &mut *self.doc_comment;
@@ -420,7 +439,12 @@ impl<'a> NodeParser<'a> {
         )
     }
 
-    fn parse_param_block(&mut self, reader: &mut TokenReader, tag: DocBlockTag, tag_name: &str) -> DocParamBlock {
+    fn parse_param_block(
+        &mut self,
+        reader: &mut TokenReader,
+        tag: DocBlockTag<'a>,
+        tag_name: &str,
+    ) -> DocParamBlock<'a> {
         let start_marker = reader.create_marker();
         let spacing_before_parameter_name = self.try_read_spacing_and_newlines(reader);
         let unsupported_jsdoc_type_before_parameter_name = self.try_parse_unsupported_jsdoc_type(reader, tag_name);
@@ -429,11 +453,12 @@ impl<'a> NodeParser<'a> {
             reader.read_token();
             unsupported_jsdoc_optional_name_open_bracket = Some(reader.extract_accumulated_sequence());
         }
-        let mut parameter_name = String::new();
-        while matches!(reader.peek_token_kind(), TokenKind::AsciiWord | TokenKind::Period | TokenKind::DollarSign) {
-            parameter_name += reader.read_token().text(self.buffer);
-        }
-        if let Some(explanation) = string_checks::explain_if_invalid_unquoted_identifier(&parameter_name) {
+        let pos = reader.peek_token().range().pos;
+        let start = TextRange::new(pos, pos);
+        let parameter_name = self.read_while(reader, start, |kind| {
+            matches!(kind, TokenKind::AsciiWord | TokenKind::Period | TokenKind::DollarSign)
+        });
+        if let Some(explanation) = string_checks::explain_if_invalid_unquoted_identifier(parameter_name) {
             reader.backtrack_to_marker(start_marker);
             let text = if parameter_name.is_empty() {
                 format!("The {tag_name} block should be followed by a parameter name")
@@ -489,10 +514,15 @@ impl<'a> NodeParser<'a> {
             spacing_after_hyphen: excerpt(Kind::Spacing, spacing_after_hyphen),
             unsupported_jsdoc_type_after_hyphen: excerpt(Kind::NonstandardText, unsupported_jsdoc_type_after_hyphen),
         };
-        DocParamBlock { block_tag: tag, parameter_name, content: DocSection::default(), excerpts }
+        DocParamBlock {
+            block_tag: tag,
+            parameter_name: parameter_name.into(),
+            content: DocSection::default(),
+            excerpts,
+        }
     }
 
-    fn parse_backslash_escape(&mut self, reader: &mut TokenReader) -> DocNode {
+    fn parse_backslash_escape(&mut self, reader: &mut TokenReader) -> DocNode<'a> {
         reader.assert_accumulated_sequence_is_empty();
         let marker = reader.create_marker();
         reader.read_token();
@@ -514,7 +544,7 @@ impl<'a> NodeParser<'a> {
         .into()
     }
 
-    fn parse_block_tag(&mut self, reader: &mut TokenReader) -> DocNode {
+    fn parse_block_tag(&mut self, reader: &mut TokenReader) -> DocNode<'a> {
         reader.assert_accumulated_sequence_is_empty();
         let marker = reader.create_marker();
         // "@one" starts a tag at the start of a line or after a space; "@one@two" is a mistake.
@@ -523,32 +553,30 @@ impl<'a> NodeParser<'a> {
             let text = "The \"@\" character looks like part of a TSDoc tag; use a backslash to escape it";
             return self.backtrack_and_create_error(reader, marker, Id::AtSignInWord, text);
         }
-        let mut tag_name = reader.read_token().text(self.buffer).to_owned();
+        let at_sign = reader.read_token().range();
         if reader.peek_token_kind() != TokenKind::AsciiWord {
             let text =
                 "Expecting a TSDoc tag name after \"@\"; if it is not a tag, use a backslash to escape this character";
             return self.backtrack_and_create_error(reader, marker, Id::AtSignWithoutTagName, text);
         }
         let tag_name_marker = reader.create_marker();
-        while reader.peek_token_kind() == TokenKind::AsciiWord {
-            tag_name += reader.read_token().text(self.buffer);
-        }
+        let tag_name = self.read_while(reader, at_sign, |kind| kind == TokenKind::AsciiWord);
         if !matches!(reader.peek_token_kind(), TokenKind::Spacing | TokenKind::Newline | TokenKind::EndOfInput) {
-            let bad = first_code_unit_json(reader.peek_token().range.text(self.buffer));
+            let bad = first_code_unit_json(reader.peek_token().range().text(self.buffer));
             let text = format!(
                 "The token \"{tag_name}\" looks like a TSDoc tag but contains an invalid character {bad}; if it is not a tag, use a backslash to escape the \"@\""
             );
             return self.backtrack_and_create_error(reader, marker, Id::CharactersAfterBlockTag, &text);
         }
-        if string_checks::explain_if_invalid_tsdoc_tag_name(&tag_name).is_some() {
+        if string_checks::explain_if_invalid_tsdoc_tag_name(tag_name).is_some() {
             let failure = self.failure_for_tokens_since(reader, Id::MalformedTagName, TAG_NAME.into(), tag_name_marker);
             return self.backtrack_and_create_error_for_failure(reader, marker, "", failure);
         }
         let excerpt = reader.extract_accumulated_sequence();
-        DocBlockTag::parsed(tag_name, Some(excerpt)).into()
+        DocBlockTag::parsed(tag_name.into(), Some(excerpt)).into()
     }
 
-    fn parse_inline_tag(&mut self, reader: &mut TokenReader) -> Result<DocNode> {
+    fn parse_inline_tag(&mut self, reader: &mut TokenReader) -> Result<DocNode<'a>> {
         reader.assert_accumulated_sequence_is_empty();
         let marker = reader.create_marker();
         reader.read_token();
@@ -560,16 +588,14 @@ impl<'a> NodeParser<'a> {
             let text = "Expecting a TSDoc tag starting with \"{@\"";
             return Ok(self.backtrack_and_create_error(reader, marker, Id::MalformedInlineTag, text));
         }
-        let mut tag_name = reader.read_token().text(self.buffer).to_owned();
-        while reader.peek_token_kind() == TokenKind::AsciiWord {
-            tag_name += reader.read_token().text(self.buffer);
-        }
+        let at_sign = reader.read_token().range();
+        let tag_name = self.read_while(reader, at_sign, |kind| kind == TokenKind::AsciiWord);
         if tag_name == "@" {
             let text = "Expecting a TSDoc inline tag name after the \"{@\" characters";
             let failure = self.failure_for_tokens_since(reader, Id::MalformedInlineTag, text.into(), at_sign_marker);
             return Ok(self.backtrack_and_create_error_range_for_failure(reader, marker, at_sign_marker, "", failure));
         }
-        if string_checks::explain_if_invalid_tsdoc_tag_name(&tag_name).is_some() {
+        if string_checks::explain_if_invalid_tsdoc_tag_name(tag_name).is_some() {
             let failure = self.failure_for_tokens_since(reader, Id::MalformedTagName, TAG_NAME.into(), at_sign_marker);
             return Ok(self.backtrack_and_create_error_range_for_failure(reader, marker, at_sign_marker, "", failure));
         }
@@ -577,7 +603,7 @@ impl<'a> NodeParser<'a> {
         let spacing_after_tag_name = self.try_read_spacing_and_newlines(reader);
         // No space at all is a mistake, but in `{@tag}`.
         if spacing_after_tag_name.is_none() && reader.peek_token_kind() != TokenKind::RightCurlyBracket {
-            let bad = first_code_unit_json(reader.peek_token().range.text(self.buffer));
+            let bad = first_code_unit_json(reader.peek_token().range().text(self.buffer));
             let text = format!("The character {bad} cannot appear after the TSDoc tag name; expecting a space");
             let failure = self.failure_for_token(reader, Id::CharactersAfterInlineTag, text, None);
             return Ok(self.backtrack_and_create_error_range_for_failure(reader, marker, at_sign_marker, "", failure));
@@ -645,13 +671,13 @@ impl<'a> NodeParser<'a> {
         };
         let configuration = self.configuration;
         let definition = configuration.try_get_tag_definition_with_upper_case(&parts.tag_name_with_upper_case);
-        self.validate_tag_definition(definition, &parts.tag_name, true, parts.tag_name_excerpt);
+        self.validate_tag_definition(definition, parts.tag_name.into(), true, parts.tag_name_excerpt);
         Ok(node)
     }
 
-    fn inline_tag_base(&self, parts: &InlineTagParts) -> InlineTagBase {
+    fn inline_tag_base(&self, parts: &InlineTagParts<'a>) -> InlineTagBase<'a> {
         InlineTagBase {
-            tag_name: parts.tag_name.clone(),
+            tag_name: parts.tag_name.into(),
             tag_name_with_upper_case: parts.tag_name_with_upper_case.clone(),
             opening_delimiter_excerpt: excerpt(Kind::InlineTag_OpeningDelimiter, Some(parts.opening_delimiter)),
             tag_name_excerpt: excerpt(Kind::InlineTag_TagName, Some(parts.tag_name_excerpt)),
@@ -660,7 +686,7 @@ impl<'a> NodeParser<'a> {
         }
     }
 
-    fn inline_tag(&self, parts: &InlineTagParts) -> DocInlineTag {
+    fn inline_tag(&self, parts: &InlineTagParts<'a>) -> DocInlineTag<'a> {
         DocInlineTag {
             base: self.inline_tag_base(parts),
             tag_content: parts.tag_content.map(|content| self.text(content)).unwrap_or_default(),
@@ -668,7 +694,7 @@ impl<'a> NodeParser<'a> {
         }
     }
 
-    fn parse_inherit_doc_tag(&mut self, parts: &InlineTagParts, embedded: &mut TokenReader) -> Result<DocNode> {
+    fn parse_inherit_doc_tag(&mut self, parts: &InlineTagParts<'a>, embedded: &mut TokenReader) -> Result<DocNode<'a>> {
         let mut declaration_reference = None;
         if embedded.peek_token_kind() != TokenKind::EndOfInput {
             declaration_reference = self.parse_declaration_reference(embedded, parts.tag_name_excerpt)?;
@@ -686,7 +712,7 @@ impl<'a> NodeParser<'a> {
         Ok(DocInheritDocTag { base: self.inline_tag_base(parts), declaration_reference }.into())
     }
 
-    fn parse_link_tag(&mut self, parts: &InlineTagParts, embedded: &mut TokenReader) -> Result<DocNode> {
+    fn parse_link_tag(&mut self, parts: &InlineTagParts<'a>, embedded: &mut TokenReader) -> Result<DocNode<'a>> {
         if parts.tag_content.is_none() {
             let text = "The @link tag content is missing";
             self.log_sequence(Id::LinkTagEmpty, text.into(), parts.tag_name_excerpt);
@@ -801,19 +827,20 @@ impl<'a> NodeParser<'a> {
         embedded: &mut TokenReader,
     ) -> Option<(TokenSequence, Option<TokenSequence>)> {
         // It starts with "//" or a scheme, so it's never empty.
-        let mut url = String::new();
-        while !matches!(
-            embedded.peek_token_kind(),
-            TokenKind::Spacing
-                | TokenKind::Newline
-                | TokenKind::EndOfInput
-                | TokenKind::Pipe
-                | TokenKind::RightCurlyBracket
-        ) {
-            url += embedded.read_token().text(self.buffer);
-        }
+        let pos = embedded.peek_token().range().pos;
+        let start = TextRange::new(pos, pos);
+        let url = self.read_while(embedded, start, |kind| {
+            !matches!(
+                kind,
+                TokenKind::Spacing
+                    | TokenKind::Newline
+                    | TokenKind::EndOfInput
+                    | TokenKind::Pipe
+                    | TokenKind::RightCurlyBracket
+            )
+        });
         let sequence = embedded.extract_accumulated_sequence();
-        if let Some(explanation) = string_checks::explain_if_invalid_link_url(&url) {
+        if let Some(explanation) = string_checks::explain_if_invalid_link_url(url) {
             self.log_sequence(Id::LinkTagInvalidUrl, explanation.to_string(), sequence);
             return None;
         }
@@ -824,7 +851,7 @@ impl<'a> NodeParser<'a> {
         &mut self,
         reader: &mut TokenReader,
         context: TokenSequence,
-    ) -> Result<Option<DocDeclarationReference>> {
+    ) -> Result<Option<DocDeclarationReference<'a>>> {
         reader.assert_accumulated_sequence_is_empty();
         // Whether it has a "#", after a package name or import path.
         let marker = reader.create_marker();
@@ -947,7 +974,7 @@ impl<'a> NodeParser<'a> {
         reader: &mut TokenReader,
         expecting_dot: bool,
         context: TokenSequence,
-    ) -> Result<Option<DocMemberReference>> {
+    ) -> Result<Option<DocMemberReference<'a>>> {
         let mut member = DocMemberReference::default();
         let mut e = MemberReferenceExcerpts::default();
         if expecting_dot {
@@ -1015,7 +1042,7 @@ impl<'a> NodeParser<'a> {
         Ok(Some(member))
     }
 
-    fn parse_member_symbol(&mut self, reader: &mut TokenReader) -> Result<Option<DocMemberSymbol>> {
+    fn parse_member_symbol(&mut self, reader: &mut TokenReader) -> Result<Option<DocMemberSymbol<'a>>> {
         reader.read_token();
         let left_bracket = reader.extract_accumulated_sequence();
         let spacing_after_left_bracket = self.try_read_spacing_and_newlines(reader);
@@ -1045,7 +1072,7 @@ impl<'a> NodeParser<'a> {
         &mut self,
         reader: &mut TokenReader,
         context: TokenSequence,
-    ) -> Option<DocMemberIdentifier> {
+    ) -> Option<DocMemberIdentifier<'a>> {
         if reader.peek_token_kind() == TokenKind::DoubleQuote {
             reader.read_token();
             let left_quote = reader.extract_accumulated_sequence();
@@ -1094,7 +1121,7 @@ impl<'a> NodeParser<'a> {
         &mut self,
         reader: &mut TokenReader,
         context: TokenSequence,
-    ) -> Result<Option<DocMemberSelector>> {
+    ) -> Result<Option<DocMemberSelector<'a>>> {
         // TSDoc reports a missing label and reads on, so `(Foo:}` reads past the end.
         if reader.peek_token_kind() != TokenKind::AsciiWord {
             let text = "Expecting a selector label after the colon";
@@ -1110,7 +1137,7 @@ impl<'a> NodeParser<'a> {
         Ok(Some(selector))
     }
 
-    fn parse_html_start_tag(&mut self, reader: &mut TokenReader) -> DocNode {
+    fn parse_html_start_tag(&mut self, reader: &mut TokenReader) -> DocNode<'a> {
         reader.assert_accumulated_sequence_is_empty();
         let marker = reader.create_marker();
         reader.read_token();
@@ -1163,7 +1190,7 @@ impl<'a> NodeParser<'a> {
         .into()
     }
 
-    fn parse_html_attribute(&mut self, reader: &mut TokenReader) -> std::result::Result<DocHtmlAttribute, Failure> {
+    fn parse_html_attribute(&mut self, reader: &mut TokenReader) -> std::result::Result<DocHtmlAttribute<'a>, Failure> {
         reader.assert_accumulated_sequence_is_empty();
         let name = self.parse_html_name(reader)?;
         let spacing_after_name = self.try_read_spacing_and_newlines(reader);
@@ -1225,7 +1252,7 @@ impl<'a> NodeParser<'a> {
         Ok(())
     }
 
-    fn parse_html_end_tag(&mut self, reader: &mut TokenReader) -> DocNode {
+    fn parse_html_end_tag(&mut self, reader: &mut TokenReader) -> DocNode<'a> {
         reader.assert_accumulated_sequence_is_empty();
         let marker = reader.create_marker();
         // The caller saw the "</".
@@ -1290,7 +1317,7 @@ impl<'a> NodeParser<'a> {
         Ok(sequence)
     }
 
-    fn parse_fenced_code(&mut self, reader: &mut TokenReader) -> DocNode {
+    fn parse_fenced_code(&mut self, reader: &mut TokenReader) -> DocNode<'a> {
         reader.assert_accumulated_sequence_is_empty();
         let start_marker = reader.create_marker();
         let end_of_opening_delimiter_marker = start_marker + 2;
@@ -1384,7 +1411,7 @@ impl<'a> NodeParser<'a> {
         };
         if token_before_delimiter.kind != TokenKind::Newline {
             let text = "The closing delimiter for a code fence must not be indented";
-            self.log_range(Id::CodeFenceClosingIndent, text.into(), token_before_delimiter.range);
+            self.log_range(Id::CodeFenceClosingIndent, text.into(), token_before_delimiter.range());
         }
         let code_and_delimiter = reader.extract_accumulated_sequence();
         let code = TokenSequence::new(code_and_delimiter.start_index, code_end_marker);
@@ -1402,7 +1429,7 @@ impl<'a> NodeParser<'a> {
                 }
                 _ => {
                     let text = "Unexpected characters after closing delimiter for code fence";
-                    self.log_range(Id::CodeFenceClosingSyntax, text.into(), reader.peek_token().range);
+                    self.log_range(Id::CodeFenceClosingSyntax, text.into(), reader.peek_token().range());
                     break;
                 }
             }
@@ -1425,7 +1452,7 @@ impl<'a> NodeParser<'a> {
         .into()
     }
 
-    fn parse_code_span(&mut self, reader: &mut TokenReader) -> DocNode {
+    fn parse_code_span(&mut self, reader: &mut TokenReader) -> DocNode<'a> {
         reader.assert_accumulated_sequence_is_empty();
         let marker = reader.create_marker();
         reader.read_token();
@@ -1470,7 +1497,7 @@ impl<'a> NodeParser<'a> {
     }
 
     /// An error text for `sequence`, reported.
-    fn error_text(&mut self, sequence: TokenSequence, id: Id, message: String, location: TokenSequence) -> DocNode {
+    fn error_text(&mut self, sequence: TokenSequence, id: Id, message: String, location: TokenSequence) -> DocNode<'a> {
         let error = DocErrorText {
             text: self.text(sequence),
             text_excerpt: DocExcerpt::new(Kind::ErrorText, sequence),
@@ -1483,7 +1510,7 @@ impl<'a> NodeParser<'a> {
     }
 
     /// Reads the next token as an error text.
-    fn create_error(&mut self, reader: &mut TokenReader, id: Id, message: String) -> DocNode {
+    fn create_error(&mut self, reader: &mut TokenReader, id: Id, message: String) -> DocNode<'a> {
         reader.read_token();
         let sequence = reader.extract_accumulated_sequence();
         self.error_text(sequence, id, message, sequence)
@@ -1496,7 +1523,7 @@ impl<'a> NodeParser<'a> {
         marker: usize,
         id: Id,
         message: &str,
-    ) -> DocNode {
+    ) -> DocNode<'a> {
         reader.backtrack_to_marker(marker);
         self.create_error(reader, id, message.into())
     }
@@ -1519,7 +1546,7 @@ impl<'a> NodeParser<'a> {
         inclusive_end: usize,
         id: Id,
         message: &str,
-    ) -> DocNode {
+    ) -> DocNode<'a> {
         let sequence = self.read_error_range(reader, start, inclusive_end);
         self.error_text(sequence, id, message.into(), sequence)
     }
@@ -1531,7 +1558,7 @@ impl<'a> NodeParser<'a> {
         marker: usize,
         prefix: &str,
         failure: Failure,
-    ) -> DocNode {
+    ) -> DocNode<'a> {
         reader.backtrack_to_marker(marker);
         reader.read_token();
         let sequence = reader.extract_accumulated_sequence();
@@ -1545,7 +1572,7 @@ impl<'a> NodeParser<'a> {
         inclusive_end: usize,
         prefix: &str,
         failure: Failure,
-    ) -> DocNode {
+    ) -> DocNode<'a> {
         let sequence = self.read_error_range(reader, start, inclusive_end);
         self.error_text(sequence, failure.id, format!("{prefix}{}", failure.message), failure.location)
     }

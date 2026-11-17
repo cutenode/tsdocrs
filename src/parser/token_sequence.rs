@@ -1,6 +1,8 @@
 //! Token sequences: runs of the parsed tokens, which every excerpt of the tree is.
 
-use super::{TextRange, Token};
+use std::borrow::Cow;
+
+use super::{TextRange, Token, TokenKind};
 
 /// A run of tokens, by indices into the parse's tokens.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -34,11 +36,20 @@ impl TokenSequence {
         if self.is_empty() {
             return TextRange::EMPTY;
         }
-        TextRange::new(tokens[self.start_index].range.pos, tokens[self.end_index - 1].range.end)
+        TextRange::new(tokens[self.start_index].range().pos, tokens[self.end_index - 1].range().end)
     }
 
-    /// Its tokens' text, joined: what `@microsoft/tsdoc`'s `toString()` gives.
-    pub fn text(&self, buffer: &str, tokens: &[Token]) -> String {
-        self.tokens(tokens).iter().map(|token| token.text(buffer)).collect()
+    /// Its tokens' text, joined: what `@microsoft/tsdoc`'s `toString()` gives. Tokens on one line
+    /// sit next to each other in `buffer`, so their text is borrowed from it; only a run across
+    /// lines, past the `*`s between them, is copied.
+    pub fn text<'b>(&self, buffer: &'b str, tokens: &[Token]) -> Cow<'b, str> {
+        let tokens = self.tokens(tokens);
+        if tokens.iter().any(|token| token.kind == TokenKind::Newline) {
+            return Cow::Owned(tokens.iter().map(|token| token.text(buffer)).collect());
+        }
+        match tokens {
+            [] => Cow::Borrowed(""),
+            [first, .., last] | [first @ last] => Cow::Borrowed(&buffer[first.range().pos..last.range().end]),
+        }
     }
 }

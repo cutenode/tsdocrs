@@ -28,9 +28,9 @@ fn sizes_hold() {
         ("DocPlainText", size_of::<DocPlainText>(), 48),
         ("DocSoftBreak", size_of::<DocSoftBreak>(), 24),
         ("DocExcerpt", size_of::<DocExcerpt>(), 24),
-        ("Token", size_of::<Token>(), 40),
+        ("Token", size_of::<Token>(), 16),
         ("TextRange", size_of::<TextRange>(), 16),
-        ("ParserContext", size_of::<ParserContext>(), 992),
+        ("ParserContext", size_of::<ParserContext>(), 984),
     ];
     let wrong: Vec<String> = sizes
         .iter()

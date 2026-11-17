@@ -113,7 +113,7 @@ pub fn parse(
     #[wasm_bindgen(unchecked_param_type = "TSDocConfigFileJson | undefined")] configuration: JsValue,
 ) -> Result<JsValue, JsError> {
     let context = parse_with(text, configuration, |parser, text| parser.parse_string(text))?;
-    to_js(&Found { context: &context, utf16: &Utf16::new(&context.buffer) })
+    to_js(&Found { context: &context, utf16: &Utf16::new(context.buffer) })
 }
 
 /// Parses `text` as [`parse`] does, for its messages and tags alone. It leaves out the tree, which
@@ -124,7 +124,7 @@ pub fn check(
     #[wasm_bindgen(unchecked_param_type = "TSDocConfigFileJson | undefined")] configuration: JsValue,
 ) -> Result<JsValue, JsError> {
     let context = parse_with(text, configuration, |parser, text| parser.check_string(text))?;
-    to_js(&Checked { context: &context, utf16: &Utf16::new(&context.buffer) })
+    to_js(&Checked { context: &context, utf16: &Utf16::new(context.buffer) })
 }
 
 /// `value` as a JavaScript object. One JSON string across the boundary, parsed by the engine, is
@@ -163,11 +163,11 @@ fn with_configuration<T>(
 
 /// Runs `parse`, a parser's `parse_string` or `check_string`, on `text` with the parser the
 /// tsdoc.json settings `configuration` set up.
-fn parse_with(
-    text: &str,
+fn parse_with<'t>(
+    text: &'t str,
     configuration: JsValue,
-    parse: fn(&TSDocParser, &str) -> Result<ParserContext, ParseError>,
-) -> Result<ParserContext, JsError> {
+    parse: for<'p> fn(&TSDocParser<'p>, &'t str) -> Result<ParserContext<'t>, ParseError>,
+) -> Result<ParserContext<'t>, JsError> {
     with_configuration(configuration, |configuration| {
         parse(&TSDocParser::new(configuration), text).map_err(|ParseError { message, .. }| JsError::new(&message))
     })
@@ -202,7 +202,7 @@ impl Utf16 {
 
 /// What a parse found, written as JSON straight from the tree.
 struct Found<'a> {
-    context: &'a ParserContext,
+    context: &'a ParserContext<'a>,
     utf16: &'a Utf16,
 }
 
@@ -219,7 +219,7 @@ impl Serialize for Found<'_> {
 
 /// The messages and tags of a check.
 struct Checked<'a> {
-    context: &'a ParserContext,
+    context: &'a ParserContext<'a>,
     utf16: &'a Utf16,
 }
 
@@ -235,7 +235,7 @@ impl Serialize for Checked<'_> {
 
 /// Every tag the parser read, with where its name is.
 struct Tags<'a> {
-    context: &'a ParserContext,
+    context: &'a ParserContext<'a>,
     utf16: &'a Utf16,
 }
 
@@ -259,7 +259,7 @@ struct Tag<'a> {
 }
 
 /// The text of each of the comment's lines.
-struct Lines<'a>(&'a ParserContext);
+struct Lines<'a>(&'a ParserContext<'a>);
 
 impl Serialize for Lines<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -268,7 +268,7 @@ impl Serialize for Lines<'_> {
 }
 
 struct Messages<'a> {
-    context: &'a ParserContext,
+    context: &'a ParserContext<'a>,
     utf16: &'a Utf16,
 }
 
@@ -301,7 +301,7 @@ struct Message<'a> {
 
 /// A node and its children as a plain object.
 struct Node<'a> {
-    context: &'a ParserContext,
+    context: &'a ParserContext<'a>,
     utf16: &'a Utf16,
     node: NodeRef<'a>,
 }
@@ -399,7 +399,7 @@ impl Serialize for Node<'_> {
 
 /// A node's children.
 struct Nodes<'a> {
-    context: &'a ParserContext,
+    context: &'a ParserContext<'a>,
     utf16: &'a Utf16,
     nodes: Vec<NodeRef<'a>>,
 }

@@ -120,11 +120,12 @@ fn tokenizer((text, configuration): Input) -> Result<Value, String> {
     let context = parse(text, configuration)?;
     let mut tokens = Vec::new();
     for token in &context.tokens {
-        let index_of_line = context.lines.iter().position(|&line| line == token.line).map_or(-1, |at| at as i64);
+        let line = token.line(&context.lines);
+        let index_of_line = context.lines.iter().position(|&each| each == line).map_or(-1, |at| at as i64);
         tokens.push(Value::Object(vec![
             ("indexOfLine", Value::Number(index_of_line)),
-            ("line", format!(">{}<", escaped(context.range_text(token.line))).into()),
-            ("span", format_line_span(&context.buffer, token.line, token.range).into()),
+            ("line", format!(">{}<", escaped(context.range_text(line))).into()),
+            ("span", format_line_span(context.buffer, line, token.range()).into()),
             ("tokenKind", token.kind.as_str().into()),
         ]));
         if token.kind == TokenKind::EndOfInput {

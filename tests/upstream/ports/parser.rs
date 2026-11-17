@@ -98,7 +98,7 @@ fn trim_spaces(test: &Test) -> Result<(), String> {
 inventory::submit! { Port { file: "tsdoc/src/__tests__/DocNodeTransforms.test.ts", template: "01 trimSpacesInParagraphNodes()", run: trim_spaces } }
 
 fn degenerate_manual_nodes(test: &Test) -> Result<(), String> {
-    let text = |s: &str| DocNode::from(DocPlainText::new(s).unwrap());
+    let text = |s: &str| DocNode::from(DocPlainText::new(s.to_owned()).unwrap());
     let soft_break = || DocNode::from(DocSoftBreak::default());
     let mut section = DocSection {
         nodes: vec![

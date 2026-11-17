@@ -47,7 +47,7 @@ pub fn split_paragraphs_for_section(section: &mut DocSection) {
 
 /// Splits `paragraph` at its blank lines, keeping the first paragraph's nodes in it, and gives the
 /// paragraphs after it.
-fn split_off_paragraphs(paragraph: &mut DocParagraph) -> Vec<DocParagraph> {
+fn split_off_paragraphs<'a>(paragraph: &mut DocParagraph<'a>) -> Vec<DocParagraph<'a>> {
     // Where each paragraph after the first starts.
     let mut starts = Vec::new();
     let mut state = State::Start;

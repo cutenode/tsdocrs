@@ -10,13 +10,13 @@ use crate::{
 /// A copy of `paragraph` with its spacing collapsed, as rendered text would show it: a run of
 /// whitespace becomes one space, spaces at the paragraph's start and end go, and its plain text
 /// and soft breaks are rebuilt by hand, one plain text a line.
-pub fn trim_spaces_in_paragraph(paragraph: &DocParagraph) -> DocParagraph {
+pub fn trim_spaces_in_paragraph<'a>(paragraph: &DocParagraph<'a>) -> DocParagraph<'a> {
     DocParagraph { nodes: trimmed_nodes(paragraph).into_iter().map(Cow::into_owned).collect() }
 }
 
 /// The nodes [`trim_spaces_in_paragraph`] gives, borrowing the ones it keeps as they are, so the
 /// emitter can render them without copying.
-pub(crate) fn trimmed_nodes(paragraph: &DocParagraph) -> Vec<Cow<'_, DocNode>> {
+pub(crate) fn trimmed_nodes<'r, 'a>(paragraph: &'r DocParagraph<'a>) -> Vec<Cow<'r, DocNode<'a>>> {
     let mut transformed = Vec::new();
     // The text since the last node that isn't text, and whether there's any, even empty.
     let (mut accumulated, mut accumulating) = (String::new(), false);
@@ -73,7 +73,7 @@ pub(crate) fn trimmed_nodes(paragraph: &DocParagraph) -> Vec<Cow<'_, DocNode>> {
 }
 
 /// Adds `text` as plain text, a soft break between its lines.
-fn push_accumulated_text(text: &str, followed_by_inline_node: bool, out: &mut Vec<Cow<'_, DocNode>>) {
+fn push_accumulated_text(text: &str, followed_by_inline_node: bool, out: &mut Vec<Cow<'_, DocNode<'_>>>) {
     let soft_break = || Cow::Owned(DocSoftBreak::default().into());
     let last = text.matches('\n').count();
     for (i, line) in text.split('\n').enumerate() {
@@ -86,6 +86,6 @@ fn push_accumulated_text(text: &str, followed_by_inline_node: bool, out: &mut Ve
         if i != 0 {
             out.push(soft_break());
         }
-        out.push(Cow::Owned(DocPlainText { text: line.to_owned(), text_excerpt: None }.into()));
+        out.push(Cow::Owned(DocPlainText { text: Cow::Owned(line.to_owned()), text_excerpt: None }.into()));
     }
 }

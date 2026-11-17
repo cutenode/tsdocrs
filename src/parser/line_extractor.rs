@@ -34,7 +34,12 @@ pub fn extract(buffer: &str, range: TextRange, log: &mut Vec<ParserMessage>) -> 
     let mut next_index = range.pos;
     let mut state = State::BeginComment1;
     let mut lines = Vec::new();
-    let char_at = |at: usize| if at < range.end { buffer[at..].chars().next() } else { None };
+    // Comments are mostly ASCII, where a byte is its character and decoding one would cost more.
+    let char_at = |at: usize| match buffer.as_bytes().get(at) {
+        _ if at >= range.end => None,
+        Some(&byte) if byte.is_ascii() => Some(byte as char),
+        _ => buffer[at..].chars().next(),
+    };
     let fail = |log: &mut Vec<ParserMessage>, id, text: &str, range| {
         log.push(ParserMessage::new(buffer, &mut Locator::default(), id, text.into(), range, None));
         None

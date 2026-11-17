@@ -113,7 +113,7 @@ fn holds_together(comment: &str, configuration: &TSDocConfiguration) {
         let range = excerpt.content.containing_text_range(&context.tokens);
         match excerpt.content.tokens(&context.tokens) {
             [] => assert_eq!(range, TextRange::EMPTY),
-            [first, .., last] | [first @ last] => assert_eq!((range.pos, range.end), (first.range.pos, last.range.end)),
+            [first, .., last] | [first @ last] => assert_eq!((range.pos, range.end), (first.range().pos, last.range().end)),
         }
         assert_eq!(context.range_text(range).len(), range.len());
         assert_eq!(range.is_empty(), range.pos == range.end);
@@ -140,7 +140,8 @@ fn holds_together(comment: &str, configuration: &TSDocConfiguration) {
             // A reference reads back the same once emitted.
             NodeRef::LinkTag(DocLinkTag { code_destination: Some(reference), .. }) => {
                 let emitted = reference.emit_as_tsdoc();
-                let again = parser.parse_string(&format!("/** {{@link {emitted}}} */")).unwrap();
+                let text = format!("/** {{@link {emitted}}} */");
+                let again = parser.parse_string(&text).unwrap();
                 let link = walk(NodeRef::Comment(&again.doc_comment)).into_iter().find_map(|node| match node {
                     NodeRef::LinkTag(link) => link.code_destination.clone(),
                     _ => None,
@@ -149,13 +150,14 @@ fn holds_together(comment: &str, configuration: &TSDocConfiguration) {
             }
             // An HTML tag reads back the same once emitted.
             NodeRef::HtmlStartTag(tag) => {
-                let again = parser.parse_string(&format!("/** {} */", tag.emit_as_html())).unwrap();
+                let text = format!("/** {} */", tag.emit_as_html());
+                let again = parser.parse_string(&text).unwrap();
                 let read = walk(NodeRef::Comment(&again.doc_comment)).into_iter().find_map(|node| match node {
                     NodeRef::HtmlStartTag(read) => Some(read.clone()),
                     _ => None,
                 });
                 let attributes = |tag: &DocHtmlStartTag| {
-                    tag.html_attributes.iter().map(|a| (a.name.clone(), a.value.clone())).collect::<Vec<_>>()
+                    tag.html_attributes.iter().map(|a| (a.name.to_string(), a.value.to_string())).collect::<Vec<_>>()
                 };
                 let read = read.expect("the emitted tag reads as one");
                 assert_eq!(
@@ -311,7 +313,7 @@ fn hand_built_nodes_emit(tc: TestCase) {
         base: InlineTagBase::new("@link").unwrap(),
         code_destination: None,
         url_destination: Some("https://example.com".into()),
-        link_text: tc.draw(gs::optional(gs::sampled_from(vec!["text".to_owned()]))),
+        link_text: tc.draw(gs::optional(gs::sampled_from(vec!["text".to_owned()]))).map(Into::into),
         excerpts: LinkTagExcerpts::default(),
     };
     // A link with no destination writes its text alone, as TSDoc's emitter does.
@@ -353,7 +355,7 @@ fn hand_built_nodes_emit(tc: TestCase) {
     assert_eq!(DocHtmlEndTag { name: "b".into(), ..Default::default() }.emit_as_html(), "</b>");
     // A tag built without spacing gets a space before each attribute, and reads back the same.
     let attribute =
-        |name: &str, value: &str| DocHtmlAttribute { name: name.into(), value: value.into(), ..Default::default() };
+        |name: &str, value: &str| DocHtmlAttribute { name: name.to_owned().into(), value: value.to_owned().into(), ..Default::default() };
     let attributes = vec![attribute("src", "\"x\""), attribute(word.split(' ').next().unwrap_or("a"), "'y'")];
     let tag = DocHtmlStartTag { name: "img".into(), html_attributes: attributes, ..Default::default() };
     let html = tag.emit_as_html();

@@ -19,8 +19,8 @@ use crate::parser::TokenSequence;
 /// The type a [`DocNode`] variant holds its node as: boxed for the kinds marked `boxed`, so a
 /// `DocNode` is as small as the largest of the rest, and moving one is cheap.
 macro_rules! held {
-    ($node:ident) => { $node };
-    ($node:ident boxed) => { Box<$node> };
+    ([$($node:tt)*]) => { $($node)* };
+    ([$($node:tt)*] boxed) => { Box<$($node)*> };
 }
 
 /// `node`, as its [`DocNode`] variant holds it.
@@ -34,8 +34,9 @@ macro_rules! hold {
 }
 
 /// Declares the node kinds: [`DocNodeKind`], and a variant of [`DocNode`] and [`NodeRef`] for each.
+/// `$a` is the lifetime of the text the nodes borrow.
 macro_rules! nodes {
-    ($($kind:ident($node:ident $($boxed:ident)?),)*) => {
+    ($a:lifetime; $($kind:ident($node:ident $(<$l:lifetime>)? $($boxed:ident)?),)*) => {
         /// What a node is.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub enum DocNodeKind {
@@ -59,23 +60,23 @@ macro_rules! nodes {
         /// paragraphs, sections and excerpts are held as they are and the other kinds boxed, so a
         /// `DocNode` is no larger than plain text.
         #[derive(Clone, Debug, PartialEq, Eq)]
-        pub enum DocNode {
+        pub enum DocNode<$a> {
             $(
                 #[doc = concat!("A [`", stringify!($node), "`].")]
-                $kind(held!($node $($boxed)?)),
+                $kind(held!([$node $(<$l>)?] $($boxed)?)),
             )*
         }
 
         /// A node, borrowed.
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-        pub enum NodeRef<'a> {
+        pub enum NodeRef<$a> {
             $(
                 #[doc = concat!("A [`", stringify!($node), "`].")]
-                $kind(&'a $node),
+                $kind(&$a $node $(<$l>)?),
             )*
         }
 
-        impl DocNode {
+        impl<$a> DocNode<$a> {
             /// What it is.
             pub fn kind(&self) -> DocNodeKind {
                 self.as_ref().kind()
@@ -89,7 +90,7 @@ macro_rules! nodes {
             }
         }
 
-        impl<'a> NodeRef<'a> {
+        impl<$a> NodeRef<$a> {
             /// What it is.
             pub fn kind(self) -> DocNodeKind {
                 match self {
@@ -98,7 +99,7 @@ macro_rules! nodes {
             }
 
             /// Its children, excerpts included, in `@microsoft/tsdoc`'s order.
-            pub fn child_nodes(self) -> Vec<NodeRef<'a>> {
+            pub fn child_nodes(self) -> Vec<NodeRef<$a>> {
                 let mut children = Vec::new();
                 match self {
                     $(Self::$kind(node) => node.push_children(&mut children),)*
@@ -108,14 +109,14 @@ macro_rules! nodes {
         }
 
         $(
-            impl<'a> From<&'a $node> for NodeRef<'a> {
-                fn from(node: &'a $node) -> Self {
+            impl<$a> From<&$a $node $(<$l>)?> for NodeRef<$a> {
+                fn from(node: &$a $node $(<$l>)?) -> Self {
                     Self::$kind(node)
                 }
             }
 
-            impl From<$node> for DocNode {
-                fn from(node: $node) -> Self {
+            impl<$a> From<$node $(<$l>)?> for DocNode<$a> {
+                fn from(node: $node $(<$l>)?) -> Self {
                     Self::$kind(hold!(node $($boxed)?))
                 }
             }
@@ -124,30 +125,31 @@ macro_rules! nodes {
 }
 
 nodes! {
-    Block(DocBlock boxed),
-    BlockTag(DocBlockTag boxed),
+    'a;
+    Block(DocBlock<'a> boxed),
+    BlockTag(DocBlockTag<'a> boxed),
     Excerpt(DocExcerpt),
-    FencedCode(DocFencedCode boxed),
-    CodeSpan(DocCodeSpan boxed),
-    Comment(DocComment boxed),
-    DeclarationReference(DocDeclarationReference boxed),
-    ErrorText(DocErrorText boxed),
-    EscapedText(DocEscapedText boxed),
-    HtmlAttribute(DocHtmlAttribute boxed),
-    HtmlEndTag(DocHtmlEndTag boxed),
-    HtmlStartTag(DocHtmlStartTag boxed),
-    InheritDocTag(DocInheritDocTag boxed),
-    InlineTag(DocInlineTag boxed),
-    LinkTag(DocLinkTag boxed),
-    MemberIdentifier(DocMemberIdentifier boxed),
-    MemberReference(DocMemberReference boxed),
-    MemberSelector(DocMemberSelector boxed),
-    MemberSymbol(DocMemberSymbol boxed),
-    Paragraph(DocParagraph),
-    ParamBlock(DocParamBlock boxed),
-    ParamCollection(DocParamCollection boxed),
-    PlainText(DocPlainText),
-    Section(DocSection),
+    FencedCode(DocFencedCode<'a> boxed),
+    CodeSpan(DocCodeSpan<'a> boxed),
+    Comment(DocComment<'a> boxed),
+    DeclarationReference(DocDeclarationReference<'a> boxed),
+    ErrorText(DocErrorText<'a> boxed),
+    EscapedText(DocEscapedText<'a> boxed),
+    HtmlAttribute(DocHtmlAttribute<'a> boxed),
+    HtmlEndTag(DocHtmlEndTag<'a> boxed),
+    HtmlStartTag(DocHtmlStartTag<'a> boxed),
+    InheritDocTag(DocInheritDocTag<'a> boxed),
+    InlineTag(DocInlineTag<'a> boxed),
+    LinkTag(DocLinkTag<'a> boxed),
+    MemberIdentifier(DocMemberIdentifier<'a> boxed),
+    MemberReference(DocMemberReference<'a> boxed),
+    MemberSelector(DocMemberSelector<'a> boxed),
+    MemberSymbol(DocMemberSymbol<'a> boxed),
+    Paragraph(DocParagraph<'a>),
+    ParamBlock(DocParamBlock<'a> boxed),
+    ParamCollection(DocParamCollection<'a> boxed),
+    PlainText(DocPlainText<'a>),
+    Section(DocSection<'a>),
     SoftBreak(DocSoftBreak),
 }
 

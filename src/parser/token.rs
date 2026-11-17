@@ -102,23 +102,45 @@ impl TokenKind {
     }
 }
 
-/// A token: its kind, where it is, and the line it's on.
+/// A token: its kind, where it is, and the line it's on. It keeps its offsets as `u32`, which
+/// holds it to 16 bytes, so the text parsed is at most 4 GiB.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Token {
     /// What it is.
     pub kind: TokenKind,
-    /// Where it is.
-    pub range: TextRange,
-    /// The line it's on.
-    pub line: TextRange,
+    pos: u32,
+    end: u32,
+    line: u32,
 }
 
 impl Token {
+    /// A token of `kind` from `pos` to `end`, on the line at `line` of the parse's lines.
+    pub(crate) fn new(kind: TokenKind, pos: usize, end: usize, line: usize) -> Self {
+        let offset = |at: usize| u32::try_from(at).expect("tsdocrs parses text of at most 4 GiB");
+        Self { kind, pos: offset(pos), end: offset(end), line: offset(line) }
+    }
+
+    /// Where it is.
+    pub fn range(&self) -> TextRange {
+        TextRange::new(self.pos as usize, self.end as usize)
+    }
+
+    /// The index of the line it's on, in the parse's lines.
+    pub fn line_index(&self) -> usize {
+        self.line as usize
+    }
+
+    /// The line it's on, of the parse's `lines`, or [`TextRange::EMPTY`] for the end-of-input
+    /// token of a comment with no lines.
+    pub fn line(&self, lines: &[TextRange]) -> TextRange {
+        lines.get(self.line_index()).copied().unwrap_or(TextRange::EMPTY)
+    }
+
     /// Its text in `buffer`, the parsed text: `\n` for a newline.
     pub fn text<'b>(&self, buffer: &'b str) -> &'b str {
         match self.kind {
             TokenKind::Newline => "\n",
-            _ => self.range.text(buffer),
+            _ => &buffer[self.pos as usize..self.end as usize],
         }
     }
 }
