@@ -2,7 +2,7 @@
 //! `/**` or a line's leading `*` and the one space after it, up to the line's last character that
 //! isn't whitespace.
 
-use super::{ParserMessage, TSDocMessageId, TextRange, is_whitespace};
+use super::{ParserMessage, TSDocMessageId, TextRange, is_whitespace, text_range::Locator};
 
 /// Where the extractor is.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -36,7 +36,7 @@ pub fn extract(buffer: &str, range: TextRange, log: &mut Vec<ParserMessage>) -> 
     let mut lines = Vec::new();
     let char_at = |at: usize| if at < range.end { buffer[at..].chars().next() } else { None };
     let fail = |log: &mut Vec<ParserMessage>, id, text: &str, range| {
-        log.push(ParserMessage::new(buffer, id, text.into(), range, None));
+        log.push(ParserMessage::new(buffer, &mut Locator::default(), id, text.into(), range, None));
         None
     };
     loop {

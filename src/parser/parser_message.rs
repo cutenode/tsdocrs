@@ -1,6 +1,6 @@
 //! Messages: what the parser reports wrong with a comment.
 
-use super::{TSDocMessageId, TextRange, TokenSequence};
+use super::{TSDocMessageId, TextRange, TokenSequence, text_range::Locator};
 
 /// Something wrong in a comment, as TSDoc reports it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -18,16 +18,17 @@ pub struct ParserMessage {
 }
 
 impl ParserMessage {
-    /// A message about `text_range` of `buffer`, the parsed text. Only the parser makes them, with a
-    /// text and a range inside `buffer`.
+    /// A message about `text_range` of `buffer`, the parsed text, located with `locator`. Only the
+    /// parser makes them, with a text and a range inside `buffer`.
     pub(crate) fn new(
         buffer: &str,
+        locator: &mut Locator,
         message_id: TSDocMessageId,
         unformatted_text: String,
         text_range: TextRange,
         token_sequence: Option<TokenSequence>,
     ) -> Self {
-        let text = format_message_text(buffer, &unformatted_text, text_range);
+        let text = format_message_text(buffer, locator, &unformatted_text, text_range);
         Self { message_id, unformatted_text, text, text_range, token_sequence }
     }
 }
@@ -41,10 +42,10 @@ impl std::fmt::Display for ParserMessage {
 /// `message` after the line and column `range` starts at, unless it's the empty range at the start.
 /// TSDoc also leaves the prefix off when the range is outside the text, or fills in an empty
 /// message; neither happens to a message the parser makes.
-fn format_message_text(buffer: &str, message: &str, range: TextRange) -> String {
+fn format_message_text(buffer: &str, locator: &mut Locator, message: &str, range: TextRange) -> String {
     if range == TextRange::EMPTY {
         return message.to_owned();
     }
-    let location = TextRange::location(buffer, range.pos as isize);
+    let location = locator.locate(buffer, range.pos);
     format!("({},{}): {message}", location.line, location.column)
 }

@@ -4,7 +4,7 @@
 
 use super::{
     ParseError, ParsedTag, ParserContext, ParserMessage, TSDocMessageId as Id, TextRange, Token, TokenKind,
-    TokenSequence, string_checks, token_reader::TokenReader, tokenizer,
+    TokenSequence, string_checks, text_range::Locator, token_reader::TokenReader, tokenizer,
 };
 use crate::{
     TSDocConfiguration, TSDocTagDefinition, TSDocTagSyntaxKind,
@@ -45,6 +45,7 @@ enum Target {
 /// What an inline tag's opening, name, spacing, content and closing were read as.
 struct InlineTagParts {
     tag_name: String,
+    tag_name_with_upper_case: String,
     opening_delimiter: TokenSequence,
     tag_name_excerpt: TokenSequence,
     spacing_after_tag_name: Option<TokenSequence>,
@@ -64,6 +65,7 @@ pub(super) fn parse(context: &mut ParserContext, configuration: &TSDocConfigurat
         doc_comment,
         comment_range: *comment_range,
         target: Target::Summary,
+        locator: Locator::default(),
     };
     parser.parse()
 }
@@ -77,6 +79,8 @@ struct NodeParser<'a> {
     doc_comment: &'a mut DocComment,
     comment_range: TextRange,
     target: Target,
+    /// Where its messages are, for their texts.
+    locator: Locator,
 }
 
 /// An excerpt of `kind`, of `content` if there is some.
@@ -111,7 +115,7 @@ impl<'a> NodeParser<'a> {
                     let marker = reader.create_marker();
                     match self.parse_inline_tag(&mut reader)? {
                         DocNode::InheritDocTag(tag) if self.doc_comment.inherit_doc_tag.is_none() => {
-                            self.doc_comment.inherit_doc_tag = Some(tag);
+                            self.doc_comment.inherit_doc_tag = Some(*tag);
                         }
                         DocNode::InheritDocTag(_) => {
                             let tag_end = reader.create_marker() - 1;
@@ -203,11 +207,11 @@ impl<'a> NodeParser<'a> {
 
     fn log_sequence(&mut self, id: Id, text: String, sequence: TokenSequence) {
         let range = sequence.containing_text_range(self.tokens);
-        self.log.push(ParserMessage::new(self.buffer, id, text, range, Some(sequence)));
+        self.log.push(ParserMessage::new(self.buffer, &mut self.locator, id, text, range, Some(sequence)));
     }
 
     fn log_range(&mut self, id: Id, text: String, range: TextRange) {
-        self.log.push(ParserMessage::new(self.buffer, id, text, range, None));
+        self.log.push(ParserMessage::new(self.buffer, &mut self.locator, id, text, range, None));
     }
 
     fn validate_tag_definition(
@@ -279,7 +283,7 @@ impl<'a> NodeParser<'a> {
 
     fn parse_and_push_block(&mut self, reader: &mut TokenReader) {
         let tag = match self.parse_block_tag(reader) {
-            DocNode::BlockTag(tag) => tag,
+            DocNode::BlockTag(tag) => *tag,
             node => {
                 self.push_node(node);
                 return;
@@ -625,6 +629,7 @@ impl<'a> NodeParser<'a> {
         reader.read_token();
         let closing_delimiter = reader.extract_accumulated_sequence();
         let parts = InlineTagParts {
+            tag_name_with_upper_case: tag_name.to_uppercase(),
             tag_name,
             opening_delimiter,
             tag_name_excerpt,
@@ -632,15 +637,14 @@ impl<'a> NodeParser<'a> {
             tag_content,
             closing_delimiter,
         };
-        let upper = parts.tag_name.to_uppercase();
         let mut embedded = TokenReader::new(self.tokens, Some(tag_content.unwrap_or_default()));
-        let node = match upper.as_str() {
+        let node = match parts.tag_name_with_upper_case.as_str() {
             "@INHERITDOC" => self.parse_inherit_doc_tag(&parts, &mut embedded)?,
             "@LINK" => self.parse_link_tag(&parts, &mut embedded)?,
             _ => self.inline_tag(&parts).into(),
         };
         let configuration = self.configuration;
-        let definition = configuration.try_get_tag_definition_with_upper_case(&upper);
+        let definition = configuration.try_get_tag_definition_with_upper_case(&parts.tag_name_with_upper_case);
         self.validate_tag_definition(definition, &parts.tag_name, true, parts.tag_name_excerpt);
         Ok(node)
     }
@@ -648,7 +652,7 @@ impl<'a> NodeParser<'a> {
     fn inline_tag_base(&self, parts: &InlineTagParts) -> InlineTagBase {
         InlineTagBase {
             tag_name: parts.tag_name.clone(),
-            tag_name_with_upper_case: parts.tag_name.to_uppercase(),
+            tag_name_with_upper_case: parts.tag_name_with_upper_case.clone(),
             opening_delimiter_excerpt: excerpt(Kind::InlineTag_OpeningDelimiter, Some(parts.opening_delimiter)),
             tag_name_excerpt: excerpt(Kind::InlineTag_TagName, Some(parts.tag_name_excerpt)),
             spacing_after_tag_name_excerpt: excerpt(Kind::Spacing, parts.spacing_after_tag_name),

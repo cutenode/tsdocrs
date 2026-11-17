@@ -18,7 +18,7 @@ use tsdocrs::{
 #[test]
 fn sizes_hold() {
     let sizes = [
-        ("DocNode", size_of::<DocNode>(), 840),
+        ("DocNode", size_of::<DocNode>(), 48),
         ("DocComment", size_of::<DocComment>(), 840),
         ("DocLinkTag", size_of::<DocLinkTag>(), 504),
         ("DocParamBlock", size_of::<DocParamBlock>(), 360),

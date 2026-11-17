@@ -203,6 +203,10 @@ fn holds_together(comment: &str, configuration: &TSDocConfiguration) {
     ];
     for (name, is) in modifiers {
         assert_eq!(tags.has_tag_name(name), is, "{name}");
+        assert_eq!(tags.has_tag_name(&name.to_lowercase()), is, "{name}");
+        // `ı` upper-cases to `I`, so a name spelled with it is the same tag, as TSDoc finds it.
+        let dotless = name.replace('i', "ı");
+        assert_eq!(tags.has_tag_name(&dotless), is, "{dotless}");
     }
     // Text with more than spaces counts as text, and so does code.
     let summary = NodeRef::Section(&context.doc_comment.summary_section);

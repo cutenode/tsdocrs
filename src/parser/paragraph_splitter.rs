@@ -30,30 +30,36 @@ enum State {
     ReadingTrailer,
 }
 
-/// Splits the paragraphs of `section`.
+/// Splits the paragraphs of `section`. Most paragraphs don't split, so a paragraph's nodes move
+/// only when it does, and only the ones after a split.
 pub fn split_paragraphs_for_section(section: &mut DocSection) {
-    let mut output = Vec::new();
-    for node in std::mem::take(&mut section.nodes) {
-        match node {
-            DocNode::Paragraph(paragraph) => split_paragraph(paragraph, &mut output),
-            node => output.push(node),
+    let mut at = 0;
+    while at < section.nodes.len() {
+        if let DocNode::Paragraph(paragraph) = &mut section.nodes[at] {
+            let rest = split_off_paragraphs(paragraph);
+            let count = rest.len();
+            section.nodes.splice(at + 1..at + 1, rest.into_iter().map(DocNode::Paragraph));
+            at += count;
         }
+        at += 1;
     }
-    section.nodes = output;
 }
 
-fn split_paragraph(old: DocParagraph, output: &mut Vec<DocNode>) {
-    let mut paragraphs = vec![DocParagraph::default()];
+/// Splits `paragraph` at its blank lines, keeping the first paragraph's nodes in it, and gives the
+/// paragraphs after it.
+fn split_off_paragraphs(paragraph: &mut DocParagraph) -> Vec<DocParagraph> {
+    // Where each paragraph after the first starts.
+    let mut starts = Vec::new();
     let mut state = State::Start;
-    let mut nodes = old.nodes.into_iter().peekable();
-    while nodes.peek().is_some() {
+    let mut line_start = 0;
+    while line_start < paragraph.nodes.len() {
         // A line, up to and with its soft break.
-        let mut line = Vec::new();
         let mut blank = true;
-        for node in nodes.by_ref() {
+        let mut line_end = line_start;
+        for node in &paragraph.nodes[line_start..] {
+            line_end += 1;
             let soft_break = matches!(node, DocNode::SoftBreak(_));
-            blank &= soft_break || is_whitespace_text(&node);
-            line.push(node);
+            blank &= soft_break || is_whitespace_text(node);
             if soft_break {
                 break;
             }
@@ -62,14 +68,18 @@ fn split_paragraph(old: DocParagraph, output: &mut Vec<DocNode>) {
             State::Start if !blank => state = State::AwaitingTrailer,
             State::AwaitingTrailer if blank => state = State::ReadingTrailer,
             State::ReadingTrailer if !blank => {
-                paragraphs.push(DocParagraph::default());
+                starts.push(line_start);
                 state = State::AwaitingTrailer;
             }
             _ => {}
         }
-        paragraphs.last_mut().expect("there's always one").nodes.extend(line);
+        line_start = line_end;
     }
-    output.extend(paragraphs.into_iter().map(DocNode::Paragraph));
+    // From the last, so each split moves only the nodes after it.
+    let mut rest: Vec<DocParagraph> =
+        starts.iter().rev().map(|&start| DocParagraph { nodes: paragraph.nodes.split_off(start) }).collect();
+    rest.reverse();
+    rest
 }
 
 /// Whether `node` is plain text of nothing but whitespace.

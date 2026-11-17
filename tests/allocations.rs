@@ -70,7 +70,7 @@ fn a_corpus_pass_allocates_no_more_than_it_did() {
     let [allocations, reallocations, bytes] = std::array::from_fn(|at| counts()[at] - before[at]);
     println!("{allocations} allocations, {reallocations} reallocations, {bytes} bytes requested");
 
-    assert!(allocations <= 93_718, "{allocations} allocations");
-    assert!(reallocations <= 85_349, "{reallocations} reallocations");
-    assert!(bytes <= 262_714_582, "{bytes} bytes requested");
+    assert!(allocations <= 75_681, "{allocations} allocations");
+    assert!(reallocations <= 76_953, "{reallocations} reallocations");
+    assert!(bytes <= 50_889_998, "{bytes} bytes requested");
 }

@@ -16,9 +16,26 @@ pub(crate) use self::comment::paragraph_allows;
 pub use self::{comment::*, html::*, inline::*, reference::*, text::*};
 use crate::parser::TokenSequence;
 
+/// The type a [`DocNode`] variant holds its node as: boxed for the kinds marked `boxed`, so a
+/// `DocNode` is as small as the largest of the rest, and moving one is cheap.
+macro_rules! held {
+    ($node:ident) => { $node };
+    ($node:ident boxed) => { Box<$node> };
+}
+
+/// `node`, as its [`DocNode`] variant holds it.
+macro_rules! hold {
+    ($node:ident) => {
+        $node
+    };
+    ($node:ident boxed) => {
+        Box::new($node)
+    };
+}
+
 /// Declares the node kinds: [`DocNodeKind`], and a variant of [`DocNode`] and [`NodeRef`] for each.
 macro_rules! nodes {
-    ($($kind:ident($node:ident),)*) => {
+    ($($kind:ident($node:ident $($boxed:ident)?),)*) => {
         /// What a node is.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         pub enum DocNodeKind {
@@ -38,13 +55,14 @@ macro_rules! nodes {
         }
 
         /// A node, owned. Sections and paragraphs hold these; every kind has a variant, so any
-        /// node can be held as one, the large comment included.
+        /// node can be held as one, the large comment included. Plain text, soft breaks,
+        /// paragraphs, sections and excerpts are held as they are and the other kinds boxed, so a
+        /// `DocNode` is no larger than plain text.
         #[derive(Clone, Debug, PartialEq, Eq)]
-        #[allow(clippy::large_enum_variant)]
         pub enum DocNode {
             $(
                 #[doc = concat!("A [`", stringify!($node), "`].")]
-                $kind($node),
+                $kind(held!($node $($boxed)?)),
             )*
         }
 
@@ -98,7 +116,7 @@ macro_rules! nodes {
 
             impl From<$node> for DocNode {
                 fn from(node: $node) -> Self {
-                    Self::$kind(node)
+                    Self::$kind(hold!(node $($boxed)?))
                 }
             }
         )*
@@ -106,28 +124,28 @@ macro_rules! nodes {
 }
 
 nodes! {
-    Block(DocBlock),
-    BlockTag(DocBlockTag),
+    Block(DocBlock boxed),
+    BlockTag(DocBlockTag boxed),
     Excerpt(DocExcerpt),
-    FencedCode(DocFencedCode),
-    CodeSpan(DocCodeSpan),
-    Comment(DocComment),
-    DeclarationReference(DocDeclarationReference),
-    ErrorText(DocErrorText),
-    EscapedText(DocEscapedText),
-    HtmlAttribute(DocHtmlAttribute),
-    HtmlEndTag(DocHtmlEndTag),
-    HtmlStartTag(DocHtmlStartTag),
-    InheritDocTag(DocInheritDocTag),
-    InlineTag(DocInlineTag),
-    LinkTag(DocLinkTag),
-    MemberIdentifier(DocMemberIdentifier),
-    MemberReference(DocMemberReference),
-    MemberSelector(DocMemberSelector),
-    MemberSymbol(DocMemberSymbol),
+    FencedCode(DocFencedCode boxed),
+    CodeSpan(DocCodeSpan boxed),
+    Comment(DocComment boxed),
+    DeclarationReference(DocDeclarationReference boxed),
+    ErrorText(DocErrorText boxed),
+    EscapedText(DocEscapedText boxed),
+    HtmlAttribute(DocHtmlAttribute boxed),
+    HtmlEndTag(DocHtmlEndTag boxed),
+    HtmlStartTag(DocHtmlStartTag boxed),
+    InheritDocTag(DocInheritDocTag boxed),
+    InlineTag(DocInlineTag boxed),
+    LinkTag(DocLinkTag boxed),
+    MemberIdentifier(DocMemberIdentifier boxed),
+    MemberReference(DocMemberReference boxed),
+    MemberSelector(DocMemberSelector boxed),
+    MemberSymbol(DocMemberSymbol boxed),
     Paragraph(DocParagraph),
-    ParamBlock(DocParamBlock),
-    ParamCollection(DocParamCollection),
+    ParamBlock(DocParamBlock boxed),
+    ParamCollection(DocParamCollection boxed),
     PlainText(DocPlainText),
     Section(DocSection),
     SoftBreak(DocSoftBreak),

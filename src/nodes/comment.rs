@@ -59,6 +59,13 @@ pub struct ModifierTagSet {
 impl ModifierTagSet {
     /// Whether it has the tag named `tag_name`, in any case.
     pub fn has_tag_name(&self, tag_name: &str) -> bool {
+        // Every tag the parser reads has an ASCII name, which upper-cases byte by byte without a
+        // copy. Other text can upper-case into ASCII, as `ı` does into `I`, so it takes the full
+        // mapping.
+        if tag_name.is_ascii() {
+            let upper = || tag_name.bytes().map(|b| b.to_ascii_uppercase());
+            return self.nodes.iter().any(|tag| tag.tag_name_with_upper_case.bytes().eq(upper()));
+        }
         let upper = tag_name.to_uppercase();
         self.nodes.iter().any(|tag| tag.tag_name_with_upper_case == upper)
     }

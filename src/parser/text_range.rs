@@ -50,14 +50,44 @@ impl TextRange {
         let Some(index) = usize::try_from(index).ok().filter(|&index| index <= buffer.len()) else {
             return TextLocation { line: 0, column: 0 };
         };
-        let (mut line, mut column) = (1, 1);
-        for (_, c) in buffer.char_indices().take_while(|&(at, _)| at < index) {
+        Locator::default().locate(buffer, index)
+    }
+}
+
+/// Finds the line and column of offsets into one buffer, going on from the last one it found when
+/// the next is past it, so a parse's messages, which mostly come in order, scan the buffer once
+/// rather than once each.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Locator {
+    /// Where the characters it has counted end.
+    at: usize,
+    /// The location there.
+    location: TextLocation,
+}
+
+impl Default for Locator {
+    fn default() -> Self {
+        Self { at: 0, location: TextLocation { line: 1, column: 1 } }
+    }
+}
+
+impl Locator {
+    /// The line and column of `index` in `buffer`, which has to be at most its length, as
+    /// [`TextRange::location`] gives them.
+    pub(crate) fn locate(&mut self, buffer: &str, index: usize) -> TextLocation {
+        if index < self.at {
+            *self = Self::default();
+        }
+        let start = self.at;
+        let TextLocation { line, column } = &mut self.location;
+        for (offset, c) in buffer[start..].char_indices().take_while(|&(offset, _)| start + offset < index) {
             match c {
                 '\r' => {}
-                '\n' => (line, column) = (line + 1, 1),
-                c => column += c.len_utf16(),
+                '\n' => (*line, *column) = (*line + 1, 1),
+                c => *column += c.len_utf16(),
             }
+            self.at = start + offset + c.len_utf8();
         }
-        TextLocation { line, column }
+        self.location
     }
 }
