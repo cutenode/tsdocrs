@@ -58,16 +58,16 @@ npm ci
 npm run bench
 ```
 
-It times parsing, and parsing and emitting TSDoc again, of three corpora of real doc comments from pinned sources ([bench/corpus/](bench/corpus/SOURCES.md)): tsdocrs in Rust with [criterion](https://crates.io/crates/criterion), and tsdocrs's npm package and `@microsoft/tsdoc` in the same Node process with [tinybench](https://www.npmjs.com/package/tinybench). It writes target/bench/report.md and report.json: mean, p50 and p95 per pass, the spread, comments and MB per second, the speedup over `@microsoft/tsdoc`, and the versions and machine it ran on. rust-toolchain.toml, .node-version and the lockfiles pin what runs; the first run also builds the wasm-bindgen CLI the npm package pins, into target/. A weekly workflow runs it too, with the report in its summary.
+It times parsing, and parsing and emitting TSDoc again, of three corpora of real doc comments from pinned sources ([bench/corpus/](bench/corpus/SOURCES.md)): tsdocrs in Rust with [criterion](https://crates.io/crates/criterion), and tsdocrs's npm package and `@microsoft/tsdoc` in the same Node process with [tinybench](https://www.npmjs.com/package/tinybench). It writes target/bench/report.md and report.json: mean, p50 and p95 per pass, the spread, comments and MB per second, the speedup over `@microsoft/tsdoc`, and the versions and machine it ran on. It also runs the upstream harness and reports how tsdocrs does on TSDoc's own tests: the commit, tests passed, snapshots matched, the allowlist's size, and each failing test with why. That's the pinned suite in tests/upstream, or with `npm run bench -- --live`, microsoft/tsdoc's default branch as it is now, vendored into target/upstream. rust-toolchain.toml, .node-version and the lockfiles pin what runs; the first run also builds the wasm-bindgen CLI the npm package pins, into target/. A nightly workflow runs it with `--live`, with the report in its summary and a warning on the run when an upstream test fails.
 
 ## Scripts
 
 ```sh
 tools/check.sh                      # everything CI checks
 tools/build-npm.sh                  # the npm package, into npm/tsdocrs/pkg
-npm run bench                       # the benchmarks, into target/bench/report.md
+npm run bench [-- --live]           # the benchmarks and accuracy, into target/bench/report.md
 tools/bench/corpus.sh               # remake bench/corpus/ from its pinned sources
-tools/upstream/vendor.sh [COMMIT]   # re-vendor TSDoc's suite
+tools/upstream/vendor.sh [COMMIT [OUT]]   # re-vendor TSDoc's suite, into tests/upstream or OUT
 node tools/oracle/oracle.mjs --record tests/fixtures/corpus.json   # re-record the corpus
 ```
 

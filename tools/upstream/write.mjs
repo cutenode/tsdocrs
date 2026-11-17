@@ -1,12 +1,11 @@
-// Turns recorder.cjs's records of an upstream Jest run into tests/upstream/cases.json and
-// manifest.json, after checking them against Jest's own counts.
-// Usage: node tools/upstream/write.mjs CHECKOUT RECORDS RESULTS COMMIT DATE
+// Turns recorder.cjs's records of an upstream Jest run into OUT/cases.json and manifest.json (OUT is
+// tests/upstream when vendoring), after checking them against Jest's own counts.
+// Usage: node tools/upstream/write.mjs CHECKOUT RECORDS RESULTS COMMIT DATE OUT
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
-const [checkout, records, results, commit, date] = process.argv.slice(2);
-const out = new URL("../../tests/upstream/", import.meta.url);
+const [checkout, records, results, commit, date, out] = process.argv.slice(2);
 const require = createRequire(import.meta.url);
 const jest = JSON.parse(fs.readFileSync(results, "utf8"));
 
@@ -48,8 +47,8 @@ for (const [what, recorded, ran] of counts) {
 }
 
 const json = (value) => `${JSON.stringify(value, null, "\t")}\n`;
-fs.writeFileSync(new URL("cases.json", out), json({ files }));
+fs.writeFileSync(path.join(out, "cases.json"), json({ files }));
 fs.writeFileSync(
-	new URL("manifest.json", out),
+	path.join(out, "manifest.json"),
 	json({ repository: "microsoft/tsdoc", commit, date, files: files.length, tests, snapshots }),
 );
