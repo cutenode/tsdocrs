@@ -1,6 +1,6 @@
 {
 	"name": "tsdocrs",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "A TSDoc parser compiled to WebAssembly: the tree and messages @microsoft/tsdoc gives, from Rust",
 	"keywords": [
 		"documentation",
