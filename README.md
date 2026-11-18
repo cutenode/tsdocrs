@@ -2,6 +2,8 @@
 
 tsdocrs parses [TSDoc](https://tsdoc.org) comments in Rust. It's a port of [`@microsoft/tsdoc`](https://github.com/microsoft/tsdoc)'s parser that gives the same tree of doc nodes and the same messages, with TSDoc's own message ids and texts, so a tool built on it reports what `eslint-plugin-tsdoc` does. It also reads tsdoc.json the way `@microsoft/tsdoc-config` does, and ships to npm as WebAssembly.
 
+the code in this project has had zero human oversight. Guidance happened in how to implement - most importantly, to have 1:1 parity with tests - and additional measures have been implemented to make sure that output is as close as possible. The goal of this was to support TSDoc in [docov](http://github.com/cutenode/docov) in a way that didn't have to flip between Rust and JS. Improvements that maintain accuracy to the upstream are entirely welcome.
+
 ## Use it
 
 ```rust
